@@ -306,12 +306,12 @@ export const PublicQRViewer: React.FC<PublicQRViewerProps> = ({ qrId, onBackToSt
       </header>
 
       {/* Main Reveal Card Container */}
-      <main className="relative z-10 max-w-2xl w-full mx-auto px-4 py-6 flex-1 flex flex-col justify-center">
+      <main className="relative z-10 max-w-2xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-6 flex-1 flex flex-col justify-center">
         <div className="glass-panel rounded-3xl border border-white/10 shadow-2xl animate-fade-in relative overflow-hidden flex flex-col">
           
           {/* Smart Generated Cover Image */}
           {record.content.generatedImage && (
-            <div className="w-full h-48 sm:h-64 relative border-b border-slate-800">
+            <div className="w-full h-40 sm:h-64 relative border-b border-slate-800">
               <img 
                 src={record.content.generatedImage} 
                 alt="AI Generated Cover" 
@@ -321,16 +321,16 @@ export const PublicQRViewer: React.FC<PublicQRViewerProps> = ({ qrId, onBackToSt
             </div>
           )}
 
-          <div className="p-6 sm:p-8 space-y-6">
+          <div className="p-4 sm:p-8 space-y-4 sm:space-y-6">
             {/* Card Top Banner Badge */}
-          <div className="flex items-center justify-between flex-wrap gap-2 pb-4 border-b border-slate-800/80">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between flex-wrap gap-2 pb-3 sm:pb-4 border-b border-slate-800/80">
+            <div className="flex items-center gap-2 max-w-full">
               {loc.headline && (
                 <span className="text-xs text-slate-400 font-medium line-clamp-1">{loc.headline}</span>
               )}
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <div className="flex items-center gap-1.5">
                 {isTranslating && (
                   <Sparkles className="w-3.5 h-3.5 text-brand-400 animate-spin" />
@@ -338,7 +338,7 @@ export const PublicQRViewer: React.FC<PublicQRViewerProps> = ({ qrId, onBackToSt
                 <select
                   value={selectedLang}
                   onChange={(e) => setSelectedLang(e.target.value as 'en' | 'hi' | 'te')}
-                  className="bg-slate-900 text-xs text-brand-300 rounded-lg px-2 py-1.5 border border-slate-700 outline-none font-bold shadow-sm transition-opacity"
+                  className="bg-slate-900 text-[11px] sm:text-xs text-brand-300 rounded-lg px-2 py-1 sm:py-1.5 border border-slate-700 outline-none font-bold shadow-sm transition-opacity"
                   style={{ opacity: isTranslating ? 0.5 : 1 }}
                   disabled={isTranslating}
                 >
@@ -348,7 +348,7 @@ export const PublicQRViewer: React.FC<PublicQRViewerProps> = ({ qrId, onBackToSt
                 </select>
               </div>
 
-              <span className="text-[11px] font-medium flex items-center gap-1" style={{ color: pageTextColor, opacity: 0.7 }}>
+              <span className="text-[10px] sm:text-[11px] font-medium flex items-center gap-1" style={{ color: pageTextColor, opacity: 0.7 }}>
                 <Calendar className="w-3 h-3" />
                 {new Date(record.stats.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
               </span>
@@ -357,12 +357,12 @@ export const PublicQRViewer: React.FC<PublicQRViewerProps> = ({ qrId, onBackToSt
 
           {/* Title & Core Summary */}
           {loc.title && (
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4 leading-[1.15]" style={{ color: pageTextColor }}>
+            <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight mb-2 sm:mb-4 leading-[1.2]" style={{ color: pageTextColor }}>
               {loc.title}
             </h1>
           )}
 
-          <div className="text-base sm:text-lg leading-relaxed mb-10 whitespace-pre-wrap font-medium" style={{ color: pageTextColor, opacity: 0.9 }}>
+          <div className="text-sm sm:text-lg leading-relaxed mb-6 sm:mb-10 whitespace-pre-wrap font-medium" style={{ color: pageTextColor, opacity: 0.9 }}>
             {loc.body}
           </div>
 

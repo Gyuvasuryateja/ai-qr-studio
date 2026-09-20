@@ -45,15 +45,15 @@ export const ReactionBar: React.FC<ReactionBarProps> = ({
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur-md">
+    <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 p-3 sm:p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur-md">
       {/* Live View Counter */}
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/70 border border-slate-800/80 text-xs font-semibold text-slate-300">
-        <Eye className="w-4 h-4 text-brand-400 animate-pulse" />
-        <span>{views} {views === 1 ? 'Scan / View' : 'Scans / Views'}</span>
+      <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-950/70 border border-slate-800/80 text-[11px] sm:text-xs font-semibold text-slate-300">
+        <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-brand-400 animate-pulse" />
+        <span>{views} {views === 1 ? 'View' : 'Views'}</span>
       </div>
 
       {/* Emoji Reactions */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
+      <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
         {EMOJI_BUTTONS.map((item) => {
           const count = reactions[item.emoji] || 0;
           const hasClicked = clickedEmojis.has(item.emoji);
@@ -64,14 +64,14 @@ export const ReactionBar: React.FC<ReactionBarProps> = ({
               type="button"
               onClick={(e) => handleEmojiClick(item.emoji, e)}
               disabled={!interactive}
-              className={`group relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all transform active:scale-95 ${
+              className={`group relative flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl border text-xs font-bold transition-all transform active:scale-95 ${
                 hasClicked
                   ? 'bg-brand-500/20 border-brand-500/60 shadow-md shadow-brand-500/20'
                   : 'bg-slate-950/60 border-slate-800 text-slate-300'
               } ${item.color}`}
             >
-              <span className="text-base group-hover:scale-125 transition-transform">{item.emoji}</span>
-              <span className="text-[11px] font-mono-code">{count}</span>
+              <span className="text-sm sm:text-base group-hover:scale-125 transition-transform">{item.emoji}</span>
+              <span className="text-[10px] sm:text-[11px] font-mono-code">{count}</span>
             </button>
           );
         })}

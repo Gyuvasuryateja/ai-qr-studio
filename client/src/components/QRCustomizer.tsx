@@ -219,19 +219,19 @@ export const QRCustomizer: React.FC<QRCustomizerProps> = ({
       </div>
 
       {/* Pattern & Dot Styles */}
-      <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
+      <div className="p-3.5 sm:p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3">
         <label className="text-xs font-bold text-slate-300 block">
           QR Dot & Body Pattern
         </label>
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-6 gap-2">
           {DOT_TYPES.map((dot) => (
             <button
               key={dot.id}
               type="button"
               onClick={() => update('dotType', dot.id)}
-              className={`py-2 px-1 text-center rounded-lg border text-xs font-medium transition-all ${
+              className={`py-2 px-1.5 text-center rounded-lg border text-xs font-medium transition-all ${
                 styleConfig.dotType === dot.id
-                  ? 'bg-brand-600/30 border-brand-500 text-brand-200'
+                  ? 'bg-brand-600/30 border-brand-500 text-brand-200 shadow-sm'
                   : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
               }`}
             >

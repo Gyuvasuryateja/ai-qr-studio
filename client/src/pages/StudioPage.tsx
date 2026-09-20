@@ -217,38 +217,58 @@ export const StudioPage: React.FC<StudioPageProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+      {/* Mobile-only Quick Preview pill for fast scrolling to live QR */}
+      <div className="lg:hidden mb-4 flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur">
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-xs font-bold text-white">Live QR Ready</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            const previewEl = document.getElementById('qr-preview-section');
+            if (previewEl) {
+              previewEl.scrollIntoView({ behavior: 'smooth' });
+            }
+          }}
+          className="px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-500/20"
+        >
+          View QR ↓
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
         
         {/* Left Column: Smart Content Generator & QR Customizer */}
-        <div className="lg:col-span-7 space-y-6">
+        <div className="lg:col-span-7 space-y-4 sm:space-y-6">
           {/* Sub-tab navigation */}
           <div className="flex bg-slate-900/90 p-1 rounded-2xl border border-slate-800">
             <button
               onClick={() => setStudioTab('content')}
-              className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              className={`flex-1 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all ${
                 studioTab === 'content'
                   ? 'bg-slate-800 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-300'
               }`}
             >
-              QR Content
+              1. Content & Voice
             </button>
             <button
               onClick={() => setStudioTab('styling')}
-              className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              className={`flex-1 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all ${
                 studioTab === 'styling'
                   ? 'bg-brand-600 text-white shadow-md'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              2. QR Visual Styling
+              2. Visual Styling
             </button>
           </div>
 
-          <div className="p-6 rounded-3xl bg-slate-900/70 border border-slate-800 shadow-2xl backdrop-blur-xl">
+          <div className="p-4 sm:p-6 rounded-3xl bg-slate-900/70 border border-slate-800 shadow-2xl backdrop-blur-xl">
             {studioTab === 'content' ? (
-              <div className="bg-slate-900/50 rounded-2xl p-6 border border-slate-800/80 shadow-2xl backdrop-blur-sm">
+              <div className="bg-slate-900/50 rounded-2xl p-4 sm:p-6 border border-slate-800/80 shadow-2xl backdrop-blur-sm">
                 <div className="mb-4">
                   <label className="text-xs font-semibold text-slate-300 block mb-2">QR Title (Optional):</label>
                   <input
@@ -359,7 +379,7 @@ export const StudioPage: React.FC<StudioPageProps> = ({
         </div>
 
         {/* Right Column: Live QR Preview & Mode Controller */}
-        <div className="lg:col-span-5">
+        <div id="qr-preview-section" className="lg:col-span-5 w-full flex justify-center">
           <QRPreview
             qrId={qrId}
             mode={mode}

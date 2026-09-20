@@ -56,16 +56,19 @@ export const QRPreview: React.FC<QRPreviewProps> = ({
 
   const payload = computePayload();
 
-  // Instantiate & update QRCodeStyling
+  // Instantiate & update QRCodeStyling with responsive dimensions
   useEffect(() => {
     const isGradient = styleConfig.colorType !== 'single';
+    // Dynamically size the QR based on viewport (smaller on mobile to prevent overflow)
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    const qrSize = isMobile ? Math.min(230, window.innerWidth - 80) : 280;
 
     const qrOptions: any = {
-      width: 280,
-      height: 280,
+      width: qrSize,
+      height: qrSize,
       type: 'svg',
       data: payload,
-      margin: styleConfig.margin,
+      margin: Math.min(styleConfig.margin, isMobile ? 8 : 15),
       qrOptions: {
         typeNumber: 0,
         mode: 'Byte',
@@ -142,11 +145,11 @@ export const QRPreview: React.FC<QRPreviewProps> = ({
   };
 
   return (
-    <div className="flex flex-col items-center gap-5 sticky top-24">
+    <div className="flex flex-col items-center gap-4 sm:gap-5 w-full lg:sticky lg:top-24">
 
       {/* QR Canvas Display Wrapper */}
-      <div className="relative p-6 rounded-3xl bg-gradient-to-b from-slate-800/80 to-slate-950/90 border border-slate-700/60 shadow-2xl flex flex-col items-center justify-center group">
-        <div className="absolute -top-3 px-3 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-[11px] font-semibold flex items-center gap-1.5 shadow-md">
+      <div className="w-full max-w-[340px] sm:max-w-none relative p-4 sm:p-6 rounded-3xl bg-gradient-to-b from-slate-800/80 to-slate-950/90 border border-slate-700/60 shadow-2xl flex flex-col items-center justify-center group mx-auto">
+        <div className="absolute -top-3 px-3 py-0.5 rounded-full bg-slate-900 border border-slate-700 text-[10px] sm:text-[11px] font-semibold flex items-center gap-1.5 shadow-md">
           {isPublished ? (
             <>
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -161,23 +164,23 @@ export const QRPreview: React.FC<QRPreviewProps> = ({
         </div>
 
         {/* QR Code Container with Draft Lock Overlay */}
-        <div className="relative">
+        <div className="relative mt-1 flex items-center justify-center">
           <div
             ref={qrRef}
-            className={`rounded-2xl overflow-hidden shadow-inner p-2 bg-white transition-all duration-300 ${
+            className={`rounded-2xl overflow-hidden shadow-inner p-1.5 sm:p-2 bg-white transition-all duration-300 max-w-full flex items-center justify-center ${
               isPublished 
                 ? 'group-hover:scale-[1.02] ring-2 ring-emerald-500/40' 
                 : 'opacity-25 blur-[2.5px] scale-[0.98] select-none pointer-events-none'
             }`}
           />
           {!isPublished && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center rounded-2xl bg-slate-950/70 backdrop-blur-[2px] border border-amber-500/20">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center mb-2 shadow-lg shadow-amber-500/20 border border-amber-500/30">
-                <Lock className="w-5 h-5" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-3 sm:p-4 text-center rounded-2xl bg-slate-950/75 backdrop-blur-[2px] border border-amber-500/20">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center mb-1.5 shadow-lg shadow-amber-500/20 border border-amber-500/30">
+                <Lock className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <p className="text-xs font-bold text-white tracking-wide">Publish Required</p>
-              <p className="text-[10px] text-slate-300 mt-1 max-w-[170px] leading-tight">
-                Scan & link are inactive until saved & published with your account.
+              <p className="text-[10px] text-slate-300 mt-0.5 max-w-[170px] leading-tight">
+                Scan & link activate once published to your workspace.
               </p>
             </div>
           )}
@@ -203,7 +206,7 @@ export const QRPreview: React.FC<QRPreviewProps> = ({
       </div>
 
       {/* Primary Action Buttons */}
-      <div className="w-full space-y-2.5">
+      <div className="w-full space-y-2.5 max-w-[340px] sm:max-w-none">
         {/* Save to Dashboard Button - Primary call to action */}
         <button
           type="button"
@@ -215,7 +218,7 @@ export const QRPreview: React.FC<QRPreviewProps> = ({
             onSaveToDashboard();
           }}
           disabled={isSaving}
-          className={`w-full py-3.5 rounded-xl font-extrabold text-sm shadow-xl flex items-center justify-center gap-2 transition-all ${
+          className={`w-full py-3 sm:py-3.5 px-3 rounded-xl font-extrabold text-xs sm:text-sm shadow-xl flex items-center justify-center gap-2 transition-all ${
             isPublished
               ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
               : 'bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-600/30 ring-2 ring-emerald-400/50 hover:scale-[1.01]'
@@ -225,12 +228,12 @@ export const QRPreview: React.FC<QRPreviewProps> = ({
             <span>Saving & Publishing QR...</span>
           ) : isPublished ? (
             <>
-              <Check className="w-4 h-4 text-emerald-400" />
-              <span>Published to Dashboard (Click to Re-save Changes)</span>
+              <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+              <span className="truncate">Published (Click to Re-save)</span>
             </>
           ) : (
             <>
-              <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+              <Sparkles className="w-4 h-4 text-amber-300 animate-pulse flex-shrink-0" />
               <span>Save & Publish to Dashboard</span>
             </>
           )}
@@ -242,14 +245,14 @@ export const QRPreview: React.FC<QRPreviewProps> = ({
             onClick={handleCopyLink}
             disabled={!isPublished}
             title={isPublished ? 'Copy public scan link' : 'Publish first to copy link'}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all border ${
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-semibold transition-all border ${
               isPublished
                 ? 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-800'
                 : 'bg-slate-950 text-slate-600 border-slate-900 cursor-not-allowed'
             }`}
           >
             {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4 text-brand-400" />}
-            <span>{copiedLink ? 'Copied Link' : 'Copy Scan Link'}</span>
+            <span className="truncate">{copiedLink ? 'Copied' : 'Copy Link'}</span>
           </button>
 
           <button
@@ -257,18 +260,18 @@ export const QRPreview: React.FC<QRPreviewProps> = ({
             onClick={onOpenShareModal}
             disabled={!isPublished}
             title={isPublished ? 'Open share options' : 'Publish first to share'}
-            className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all border ${
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-xs font-semibold transition-all border ${
               isPublished
                 ? 'bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-800'
                 : 'bg-slate-950 text-slate-600 border-slate-900 cursor-not-allowed'
             }`}
           >
             <Share2 className={`w-4 h-4 ${isPublished ? 'text-cyber-neon' : 'text-slate-600'}`} />
-            <span>Share Modal</span>
+            <span>Share</span>
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => handleDownload(downloadFormat)}
@@ -299,7 +302,7 @@ export const QRPreview: React.FC<QRPreviewProps> = ({
                 downloadFormat === 'svg' ? 'bg-brand-600 text-white' : 'text-slate-400'
               }`}
             >
-              SVG (Vector)
+              SVG
             </button>
           </div>
         </div>
