@@ -143,67 +143,6 @@ export const QRPreview: React.FC<QRPreviewProps> = ({
 
   return (
     <div className="flex flex-col items-center gap-5 sticky top-24">
-      {/* Mode Selector */}
-      <div className="w-full bg-slate-900/90 p-1 rounded-xl border border-slate-800 flex gap-1">
-        <button
-          type="button"
-          onClick={() => setMode('url')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
-            mode === 'url'
-              ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-          title="Opens rich animated destination card with TTS, views, reactions"
-        >
-          <Globe className="w-3.5 h-3.5" />
-          <span>Interactive Reveal Card</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setMode('text')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
-            mode === 'text'
-              ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-          title="Direct offline text scan for Google Lens & external cameras"
-        >
-          <FileText className="w-3.5 h-3.5" />
-          <span>Offline Text Mode</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setMode('custom_url')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
-            mode === 'custom_url'
-              ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25'
-              : 'text-slate-400 hover:text-slate-200'
-          }`}
-          title="Direct redirect to external website"
-        >
-          <ExternalLink className="w-3.5 h-3.5" />
-          <span>Custom URL</span>
-        </button>
-      </div>
-
-      {/* Custom URL Input Field when in custom_url mode */}
-      {mode === 'custom_url' && (
-        <div className="w-full">
-          <label className="text-[11px] text-slate-400 block mb-1 font-semibold">Target Destination URL:</label>
-          <div className="flex items-center gap-2 bg-slate-950 px-3 py-2 rounded-xl border border-slate-800">
-            <Link2 className="w-4 h-4 text-brand-400" />
-            <input
-              type="url"
-              value={customUrl}
-              onChange={(e) => setCustomUrl(e.target.value)}
-              placeholder="https://yourwebsite.com/promo"
-              className="bg-transparent text-xs text-white outline-none w-full font-mono-code"
-            />
-          </div>
-        </div>
-      )}
 
       {/* QR Canvas Display Wrapper */}
       <div className="relative p-6 rounded-3xl bg-gradient-to-b from-slate-800/80 to-slate-950/90 border border-slate-700/60 shadow-2xl flex flex-col items-center justify-center group">
@@ -255,7 +194,7 @@ export const QRPreview: React.FC<QRPreviewProps> = ({
         {/* Encoded Payload Description */}
         <div className="mt-3 text-center max-w-[260px]">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-400 block">
-            {mode === 'url' ? '🔗 Interactive Reveal Link' : mode === 'text' ? '📝 Plain-Text Payload' : '🌐 Custom Redirect'}
+            🔗 Interactive Reveal Link
           </span>
           <p className="text-[11px] text-slate-400 font-mono-code truncate mt-0.5" title={isPublished ? payload : 'Requires publishing'}>
             {isPublished ? payload : '•••••••••••••••• (Publish to activate)'}
