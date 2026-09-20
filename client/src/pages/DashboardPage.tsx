@@ -231,9 +231,28 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onSelectQR, onNewQ
                       <span>{qr.mode === 'url' ? 'Reveal Page' : 'Offline Text'}</span>
                     </span>
 
-                    <div className="flex items-center gap-1 text-[11px] text-slate-400 font-mono-code">
-                      <Eye className="w-3.5 h-3.5 text-slate-500" />
-                      <span>{qr.stats.views}</span>
+                    <div className="flex items-center gap-1.5">
+                      {(() => {
+                        const createdAt = new Date(qr.stats.createdAt).getTime();
+                        const expiresAt = qr.stats.expiresAt ? new Date(qr.stats.expiresAt).getTime() : createdAt + 30 * 24 * 60 * 60 * 1000;
+                        const daysLeft = Math.max(0, Math.ceil((expiresAt - Date.now()) / (1000 * 60 * 60 * 24)));
+                        const isExpired = Date.now() > expiresAt;
+                        return (
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            isExpired
+                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                              : daysLeft <= 5
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                : 'bg-slate-800 text-slate-400 border border-slate-700'
+                          }`}>
+                            {isExpired ? 'Expired' : `${daysLeft}d validity`}
+                          </span>
+                        );
+                      })()}
+                      <div className="flex items-center gap-1 text-[11px] text-slate-400 font-mono-code">
+                        <Eye className="w-3.5 h-3.5 text-slate-500" />
+                        <span>{qr.stats.views}</span>
+                      </div>
                     </div>
                   </div>
 

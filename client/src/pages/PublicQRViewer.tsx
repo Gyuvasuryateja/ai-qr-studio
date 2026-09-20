@@ -44,6 +44,16 @@ export const PublicQRViewer: React.FC<PublicQRViewerProps> = ({ qrId, onBackToSt
         setLoading(true);
         const data = await api.getQRCode(qrId);
         if (isMounted) {
+          // Check 1-month (30 days) expiration
+          if (data?.stats) {
+            const createdAtTime = new Date(data.stats.createdAt).getTime();
+            const expiresAtTime = data.stats.expiresAt ? new Date(data.stats.expiresAt).getTime() : (createdAtTime + 30 * 24 * 60 * 60 * 1000);
+            if (Date.now() > expiresAtTime) {
+              setError('This Custom QR code has expired after its 30-day validity period.');
+              return;
+            }
+          }
+
           setRecord(data);
           // Increment view counter on page open
           api.recordView(qrId).then(res => {

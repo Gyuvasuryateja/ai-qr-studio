@@ -215,7 +215,11 @@ export const cloudStorageService = {
       errorCorrectionLevel: 'Q'
     };
 
-    const now = new Date().toISOString();
+    const now = new Date();
+    const expiresAtDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days from creation
+    const nowIso = now.toISOString();
+    const expiresAtIso = record.stats?.expiresAt || expiresAtDate.toISOString();
+
     const fullRecord: QRCodeRecord = {
       id: record.id,
       userId: record.userId || 'anonymous',
@@ -234,8 +238,9 @@ export const cloudStorageService = {
         views: record.stats?.views || 0,
         scans: record.stats?.scans || 0,
         reactions: record.stats?.reactions || {},
-        createdAt: record.stats?.createdAt || now,
-        lastAccessedAt: record.stats?.lastAccessedAt || now
+        createdAt: record.stats?.createdAt || nowIso,
+        lastAccessedAt: record.stats?.lastAccessedAt || nowIso,
+        expiresAt: expiresAtIso
       }
     };
 

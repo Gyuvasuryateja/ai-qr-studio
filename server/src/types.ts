@@ -71,5 +71,6 @@ export interface QRCodeRecord {
     reactions: Record<string, number>;
     createdAt: string;
     lastAccessedAt: string;
+    expiresAt?: string;
   };
 }
