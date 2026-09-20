@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: custom-qr-studio
+    name: custom-qr
     env: node
     plan: free
     buildCommand: npm run build
