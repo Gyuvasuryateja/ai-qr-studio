@@ -54,7 +54,11 @@ export const api = {
     } catch (e) {
       console.warn('Firestore getQRCodes fallback to server:', e);
     }
-    const url = userId ? `${API_BASE}/qr?userId=${encodeURIComponent(userId)}` : `${API_BASE}/qr`;
+    const params = new URLSearchParams();
+    if (userId) params.append('userId', userId);
+    if (userEmail) params.append('userEmail', userEmail);
+    const queryString = params.toString();
+    const url = queryString ? `${API_BASE}/qr?${queryString}` : `${API_BASE}/qr`;
     const res = await fetch(url);
     if (!res.ok) return [];
     return await res.json();
@@ -99,10 +103,6 @@ export const api = {
     // 1. Immediately cache locally in browser storage so it is never lost
     if (record.id) {
       try {
-        const CACHE_KEY = `cached_qrs_${record.userId || 'anon'}`;
-        const existing = localStorage.getItem(CACHE_KEY);
-        const list: QRCodeRecord[] = existing ? JSON.parse(existing) : [];
-        const filtered = list.filter(r => r.id !== record.id);
         const now = new Date();
         const fullRec = {
           ...record,
@@ -115,8 +115,19 @@ export const api = {
             expiresAt: record.stats?.expiresAt || new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
           }
         } as QRCodeRecord;
-        filtered.unshift(fullRec);
-        localStorage.setItem(CACHE_KEY, JSON.stringify(filtered));
+
+        const keysToUpdate = new Set<string>();
+        if (record.userId) keysToUpdate.add(`cached_qrs_${record.userId}`);
+        if (record.userEmail) keysToUpdate.add(`cached_qrs_${record.userEmail.toLowerCase()}`);
+        keysToUpdate.add('cached_qrs_anon');
+
+        for (const key of keysToUpdate) {
+          const existing = localStorage.getItem(key);
+          const list: QRCodeRecord[] = existing ? JSON.parse(existing) : [];
+          const filtered = list.filter(r => r.id !== record.id);
+          filtered.unshift(fullRec);
+          localStorage.setItem(key, JSON.stringify(filtered));
+        }
       } catch {}
     }
 

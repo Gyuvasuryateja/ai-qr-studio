@@ -35,11 +35,30 @@ function saveDB(data: Record<string, QRCodeRecord>): void {
 }
 
 export const storage = {
-  getAll(userId?: string): QRCodeRecord[] {
+  getAll(userId?: string, userEmail?: string): QRCodeRecord[] {
     const db = loadDB();
     const records = Object.values(db);
-    const filtered = userId ? records.filter(r => r.userId === userId) : records;
-    return filtered.sort((a, b) => 
+    const filtered = records.filter(r => {
+      if (userId && r.userId === userId) return true;
+      if (userEmail && r.userEmail && r.userEmail.toLowerCase() === userEmail.toLowerCase()) return true;
+      if (!userId && !userEmail) return true;
+      return false;
+    });
+
+    // Retention: keep all created within 30 days
+    const nowMs = Date.now();
+    const active = filtered.filter(record => {
+      if (!record.stats) return true;
+      const createdMs = record.stats.createdAt ? new Date(record.stats.createdAt).getTime() : nowMs;
+      const expiresMs = record.stats.expiresAt 
+        ? new Date(record.stats.expiresAt).getTime() 
+        : (createdMs + 30 * 24 * 60 * 60 * 1000);
+      if (expiresMs && expiresMs > nowMs) return true;
+      if (nowMs - createdMs < 24 * 60 * 60 * 1000) return true;
+      return false;
+    });
+
+    return active.sort((a, b) => 
       new Date(b.stats.createdAt).getTime() - new Date(a.stats.createdAt).getTime()
     );
   },

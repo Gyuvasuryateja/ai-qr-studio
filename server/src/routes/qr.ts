@@ -8,11 +8,12 @@ export const qrRouter = Router();
 // GET all QR codes for authenticated user
 qrRouter.get('/', (req, res) => {
   const userId = req.query.userId as string | undefined;
-  if (!userId) {
+  const userEmail = req.query.userEmail as string | undefined;
+  if (!userId && !userEmail) {
     res.json([]);
     return;
   }
-  const records = storage.getAll(userId);
+  const records = storage.getAll(userId, userEmail);
   res.json(records);
 });
 

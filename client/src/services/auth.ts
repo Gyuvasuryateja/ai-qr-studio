@@ -54,11 +54,21 @@ export function notifyAuthListeners(user: User | null) {
 if (typeof window !== 'undefined') {
   onAuthStateChanged(auth, (fbUser) => {
     if (fbUser) {
+      // If we already have a cached profile for this user, preserve their name and creation date
+      let existingCached: User | null = null;
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed.id === fbUser.uid) existingCached = parsed;
+        }
+      } catch {}
+
       const user: User = {
         id: fbUser.uid,
-        name: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
+        name: existingCached?.name || fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
         email: fbUser.email || '',
-        createdAt: fbUser.metadata.creationTime || new Date().toISOString()
+        createdAt: existingCached?.createdAt || fbUser.metadata.creationTime || new Date().toISOString()
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
       notifyAuthListeners(user);
@@ -387,44 +397,51 @@ export const cloudStorageService = {
   // Get all QR codes for a user from Cloud Firestore with local cache backup
   async getQRCodes(userId?: string, userEmail?: string): Promise<QRCodeRecord[]> {
     const recordsMap = new Map<string, QRCodeRecord>();
-    const CACHE_KEY = `cached_qrs_${userId || 'anon'}`;
 
-    // Load from local storage cache first (both user-specific and anon cache)
+    // 1. Instantly load from all relevant local storage cache buckets
     try {
-      const cachedUser = localStorage.getItem(CACHE_KEY);
-      if (cachedUser) {
-        const parsed: QRCodeRecord[] = JSON.parse(cachedUser);
-        parsed.forEach(r => recordsMap.set(r.id, r));
-      }
-      const cachedAnon = localStorage.getItem('cached_qrs_anon');
-      if (cachedAnon) {
-        const parsedAnon: QRCodeRecord[] = JSON.parse(cachedAnon);
-        parsedAnon.forEach(r => recordsMap.set(r.id, r));
+      const keysToRead = new Set<string>();
+      if (userId) keysToRead.add(`cached_qrs_${userId}`);
+      if (userEmail) keysToRead.add(`cached_qrs_${userEmail.toLowerCase()}`);
+      keysToRead.add('cached_qrs_anon');
+
+      for (const key of keysToRead) {
+        const cached = localStorage.getItem(key);
+        if (cached) {
+          const parsed: QRCodeRecord[] = JSON.parse(cached);
+          parsed.forEach(r => recordsMap.set(r.id, r));
+        }
       }
     } catch {}
 
+    // 2. Fetch fresh updates from Firestore with a 3.5s timeout guard so it NEVER hangs indefinitely
     try {
-      const qrsCollection = collection(db, 'qrcodes');
+      const firestoreFetchPromise = (async () => {
+        const qrsCollection = collection(db, 'qrcodes');
 
-      // 1. Query by userId
-      if (userId) {
-        const userQ = query(qrsCollection, where('userId', '==', userId));
-        const userSnap = await getDocs(userQ);
-        userSnap.forEach(d => recordsMap.set(d.id, d.data() as QRCodeRecord));
-      }
+        // Query by userId
+        if (userId) {
+          const userQ = query(qrsCollection, where('userId', '==', userId));
+          const userSnap = await getDocs(userQ);
+          userSnap.forEach(d => recordsMap.set(d.id, d.data() as QRCodeRecord));
+        }
 
-      // 2. Query by userEmail as secondary link
-      if (userEmail) {
-        const emailQ = query(qrsCollection, where('userEmail', '==', userEmail.toLowerCase()));
-        const emailSnap = await getDocs(emailQ);
-        emailSnap.forEach(d => recordsMap.set(d.id, d.data() as QRCodeRecord));
-      }
+        // Query by userEmail as secondary link
+        if (userEmail) {
+          const emailQ = query(qrsCollection, where('userEmail', '==', userEmail.toLowerCase()));
+          const emailSnap = await getDocs(emailQ);
+          emailSnap.forEach(d => recordsMap.set(d.id, d.data() as QRCodeRecord));
+        }
 
-      // If no user filter provided, get all
-      if (!userId && !userEmail) {
-        const allSnap = await getDocs(query(qrsCollection));
-        allSnap.forEach(d => recordsMap.set(d.id, d.data() as QRCodeRecord));
-      }
+        // If no user filter provided, get all
+        if (!userId && !userEmail) {
+          const allSnap = await getDocs(query(qrsCollection));
+          allSnap.forEach(d => recordsMap.set(d.id, d.data() as QRCodeRecord));
+        }
+      })();
+
+      const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 3500));
+      await Promise.race([firestoreFetchPromise, timeoutPromise]);
     } catch (err) {
       console.warn('Firestore getQRCodes fetch error:', err);
     }
@@ -449,9 +466,10 @@ export const cloudStorageService = {
       return false;
     });
 
-    // Save back to persistent local cache
+    // Save back to persistent local cache buckets
     try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify(activeRecords));
+      if (userId) localStorage.setItem(`cached_qrs_${userId}`, JSON.stringify(activeRecords));
+      if (userEmail) localStorage.setItem(`cached_qrs_${userEmail.toLowerCase()}`, JSON.stringify(activeRecords));
     } catch {}
 
     return activeRecords;
