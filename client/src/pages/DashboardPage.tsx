@@ -28,18 +28,22 @@ interface DashboardPageProps {
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({ onSelectQR, onNewQR, currentUser, onRequireAuth }) => {
-  const [qrs, setQrs] = useState<QRCodeRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  // 1. Immediately read cached QRs (0ms latency, no spinner!)
+  const initialCached = api.getCachedQRs(currentUser?.id, currentUser?.email);
+  const [qrs, setQrs] = useState<QRCodeRecord[]>(initialCached);
+  const [loading, setLoading] = useState(initialCached.length === 0);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'url' | 'text'>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const fetchQRs = async () => {
     try {
-      setLoading(true);
-      // Fetch user's QR codes if logged in
+      // If we don't have any cached QRs, keep spinner active, otherwise sync silently in background
+      if (qrs.length === 0) setLoading(true);
       const data = await api.getQRCodes(currentUser?.id, currentUser?.email);
-      setQrs(data);
+      if (data && data.length > 0) {
+        setQrs(data);
+      }
     } catch (err) {
       console.error('Failed to load QR list:', err);
     } finally {
@@ -48,8 +52,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onSelectQR, onNewQ
   };
 
   useEffect(() => {
+    const cached = api.getCachedQRs(currentUser?.id, currentUser?.email);
+    if (cached.length > 0) {
+      setQrs(cached);
+      setLoading(false);
+    }
     fetchQRs();
-  }, [currentUser]);
+  }, [currentUser?.id, currentUser?.email]);
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();

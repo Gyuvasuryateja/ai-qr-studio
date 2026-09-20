@@ -394,6 +394,41 @@ export const cloudStorageService = {
     }
   },
 
+  // Instant synchronous/cached read without waiting for network or Firestore
+  getCachedQRs(userId?: string, userEmail?: string): QRCodeRecord[] {
+    const recordsMap = new Map<string, QRCodeRecord>();
+    try {
+      const keysToRead = new Set<string>();
+      if (userId) keysToRead.add(`cached_qrs_${userId}`);
+      if (userEmail) keysToRead.add(`cached_qrs_${userEmail.toLowerCase()}`);
+      keysToRead.add('cached_qrs_anon');
+
+      for (const key of keysToRead) {
+        const cached = localStorage.getItem(key);
+        if (cached) {
+          const parsed: QRCodeRecord[] = JSON.parse(cached);
+          parsed.forEach(r => recordsMap.set(r.id, r));
+        }
+      }
+    } catch {}
+
+    const records = Array.from(recordsMap.values()).sort((a, b) => 
+      new Date(b.stats?.createdAt || 0).getTime() - new Date(a.stats?.createdAt || 0).getTime()
+    );
+
+    const nowMs = Date.now();
+    return records.filter(record => {
+      if (!record.stats) return true;
+      const createdMs = record.stats.createdAt ? new Date(record.stats.createdAt).getTime() : nowMs;
+      const expiresMs = record.stats.expiresAt 
+        ? new Date(record.stats.expiresAt).getTime() 
+        : (createdMs + 30 * 24 * 60 * 60 * 1000);
+      if (expiresMs && expiresMs > nowMs) return true;
+      if (nowMs - createdMs < 24 * 60 * 60 * 1000) return true;
+      return false;
+    });
+  },
+
   // Get all QR codes for a user from Cloud Firestore with local cache backup
   async getQRCodes(userId?: string, userEmail?: string): Promise<QRCodeRecord[]> {
     const recordsMap = new Map<string, QRCodeRecord>();
@@ -440,7 +475,7 @@ export const cloudStorageService = {
         }
       })();
 
-      const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 3500));
+      const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 1800));
       await Promise.race([firestoreFetchPromise, timeoutPromise]);
     } catch (err) {
       console.warn('Firestore getQRCodes fetch error:', err);
