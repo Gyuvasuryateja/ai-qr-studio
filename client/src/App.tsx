@@ -34,9 +34,7 @@ export const App: React.FC = () => {
   // Studio Creation state
   const [qrId, setQrId] = useState<string>(() => Math.random().toString(36).substring(2, 10));
   const [customTitle, setCustomTitle] = useState<string>('');
-  const [rawText, setRawText] = useState<string>(
-    '🚀 Next-Gen Smart SDK v2.0 Global Launch! Experience 10x faster inference, multi-modal reasoning and seamless edge deployment. RSVP now for early developer preview access and a $5,000 hackathon ticket.'
-  );
+  const [rawText, setRawText] = useState<string>('');
   const [tone, setTone] = useState<TonePreset>('Creative');
   const [contentType, setContentType] = useState<'announcement' | 'promo' | 'event' | 'message' | 'general'>('announcement');
   const [mode, setMode] = useState<QRMode>('url');
