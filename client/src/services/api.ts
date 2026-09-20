@@ -76,18 +76,32 @@ export const api = {
 
   // Save (create or update) QR code permanently into Cloud Firestore & Storage
   async saveQRCode(record: Partial<QRCodeRecord>): Promise<QRCodeRecord> {
+    const savePromise = (async () => {
+      try {
+        const { cloudStorageService } = await import('./auth');
+        const savedCloud = await cloudStorageService.saveQRCode(record);
+        // Sync to local server in background as mirror
+        fetch(`${API_BASE}/qr`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(savedCloud)
+        }).catch(() => {});
+        return savedCloud;
+      } catch (e) {
+        console.warn('Firestore save error, falling back to server:', e);
+        throw e;
+      }
+    })();
+
+    // Timeout helper: if Firestore write hangs, fallback to local backend server
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Firestore save timed out')), 3500)
+    );
+
     try {
-      const { cloudStorageService } = await import('./auth');
-      const savedCloud = await cloudStorageService.saveQRCode(record);
-      // Sync to local server in background as mirror
-      fetch(`${API_BASE}/qr`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(savedCloud)
-      }).catch(() => {});
-      return savedCloud;
-    } catch (e) {
-      console.warn('Firestore save fallback to server:', e);
+      return await Promise.race([savePromise, timeoutPromise]);
+    } catch {
+      console.warn('Saving QR via server API fallback...');
       const res = await fetch(`${API_BASE}/qr`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

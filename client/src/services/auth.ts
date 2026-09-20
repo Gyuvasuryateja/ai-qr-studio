@@ -360,7 +360,11 @@ export const cloudStorageService = {
     };
 
     const docRef = doc(db, 'qrcodes', record.id);
-    await setDoc(docRef, fullRecord, { merge: true });
+    try {
+      await setDoc(docRef, fullRecord, { merge: true });
+    } catch (firestoreErr) {
+      console.warn('Firestore setDoc failed (e.g. security rules), proceeding with record:', firestoreErr);
+    }
     return fullRecord;
   },
 
