@@ -175,109 +175,199 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             </div>
           )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === 'signup' && (
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1.5">Full Name</label>
-                <div className="flex items-center gap-2.5 bg-slate-950 px-3.5 py-2.5 rounded-xl border border-slate-800 focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 transition-all">
-                  <UserIcon className="w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Enter your name"
-                    className="bg-transparent text-sm text-white outline-none w-full placeholder-slate-500"
-                  />
+          {/* Form Content */}
+          <div className="space-y-4">
+            {mode === 'signin' ? (
+              /* Direct One-Click Google Sign In */
+              <div className="space-y-4">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setError(null);
+                    setIsSubmitting(true);
+                    try {
+                      const user = await authService.continueWithGoogle();
+                      onSuccess(user);
+                    } catch (err: any) {
+                      setError(err.message || 'Google sign in failed');
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  }}
+                  disabled={isSubmitting}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-sm shadow-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.01]"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                  </svg>
+                  <span>Continue with Gmail</span>
+                </button>
+
+                <div className="relative flex items-center justify-center my-3">
+                  <div className="border-t border-slate-800 w-full" />
+                  <span className="bg-slate-900 px-3 text-[11px] text-slate-500 uppercase tracking-wider font-semibold absolute">
+                    or email & password
+                  </span>
                 </div>
-              </div>
-            )}
 
-            <div>
-              <label className="text-xs font-semibold text-slate-300 block mb-1.5">
-                {mode === 'forgot' ? 'Registered Account Email' : 'Email Address'}
-              </label>
-              <div className="flex items-center gap-2.5 bg-slate-950 px-3.5 py-2.5 rounded-xl border border-slate-800 focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 transition-all">
-                <Mail className="w-4 h-4 text-slate-400" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  className="bg-transparent text-sm text-white outline-none w-full placeholder-slate-500"
-                />
-              </div>
-            </div>
+                <form onSubmit={handleSubmit} className="space-y-3 pt-2">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1">Email</label>
+                    <div className="flex items-center gap-2 bg-slate-950 px-3 py-2 rounded-xl border border-slate-800">
+                      <Mail className="w-4 h-4 text-slate-400" />
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="alex@example.com"
+                        className="bg-transparent text-xs text-white outline-none w-full placeholder-slate-500"
+                      />
+                    </div>
+                  </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold text-slate-300">
-                  {mode === 'forgot' ? 'New Password' : 'Password'}
-                </label>
-                {mode === 'signin' && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-semibold text-slate-300">Password</label>
+                      <button
+                        type="button"
+                        onClick={() => setMode('forgot')}
+                        className="text-[10px] text-brand-400 hover:underline"
+                      >
+                        Forgot?
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 bg-slate-950 px-3 py-2 rounded-xl border border-slate-800">
+                      <Lock className="w-4 h-4 text-slate-400" />
+                      <input
+                        type="password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="bg-transparent text-xs text-white outline-none w-full placeholder-slate-500"
+                      />
+                    </div>
+                  </div>
+
                   <button
-                    type="button"
-                    onClick={() => {
-                      setMode('forgot');
-                      setError(null);
-                      setSuccessMessage(null);
-                    }}
-                    className="text-[11px] text-brand-400 hover:text-brand-300 font-semibold transition-colors"
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-all mt-2"
                   >
-                    Forgot Password?
+                    Sign In with Password
                   </button>
-                )}
+                </form>
               </div>
-              <div className="flex items-center gap-2.5 bg-slate-950 px-3.5 py-2.5 rounded-xl border border-slate-800 focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 transition-all">
-                <Lock className="w-4 h-4 text-slate-400" />
-                <input
-                  type="password"
-                  required
-                  minLength={4}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={mode === 'forgot' ? 'Enter new password' : '••••••••'}
-                  className="bg-transparent text-sm text-white outline-none w-full placeholder-slate-500"
-                />
-              </div>
-            </div>
+            ) : mode === 'signup' ? (
+              /* Sign Up: Asks for Name & Password, then Continue with Gmail */
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                      Your Name <span className="text-rose-400">*</span>
+                    </label>
+                    <div className="flex items-center gap-2.5 bg-slate-950 px-3.5 py-2.5 rounded-xl border border-slate-800 focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 transition-all">
+                      <UserIcon className="w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Enter your name"
+                        className="bg-transparent text-sm text-white outline-none w-full placeholder-slate-500"
+                      />
+                    </div>
+                  </div>
 
-            {mode === 'forgot' && (
-              <div>
-                <label className="text-xs font-semibold text-slate-300 block mb-1.5">Confirm New Password</label>
-                <div className="flex items-center gap-2.5 bg-slate-950 px-3.5 py-2.5 rounded-xl border border-slate-800 focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 transition-all">
-                  <Lock className="w-4 h-4 text-slate-400" />
-                  <input
-                    type="password"
-                    required
-                    minLength={4}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Re-enter new password"
-                    className="bg-transparent text-sm text-white outline-none w-full placeholder-slate-500"
-                  />
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                      Account Password <span className="text-rose-400">*</span>
+                    </label>
+                    <div className="flex items-center gap-2.5 bg-slate-950 px-3.5 py-2.5 rounded-xl border border-slate-800 focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 transition-all">
+                      <Lock className="w-4 h-4 text-slate-400" />
+                      <input
+                        type="password"
+                        required
+                        minLength={6}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Choose a password (min 6 characters)"
+                        className="bg-transparent text-sm text-white outline-none w-full placeholder-slate-500"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-brand-600 via-indigo-600 to-purple-600 hover:from-brand-500 hover:to-purple-500 text-white font-extrabold text-sm shadow-xl shadow-brand-500/25 flex items-center justify-center gap-2 transition-all group"
-            >
-              <span>
-                {mode === 'signup' 
-                  ? 'Sign Up & Continue to App' 
-                  : mode === 'signin' 
-                    ? 'Sign In & Continue to App' 
-                    : 'Set New Password & Return to Sign In'}
-              </span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </button>
-          </form>
+                {/* Primary Sign Up with Google */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!name.trim()) {
+                      setError('Please enter your name first.');
+                      return;
+                    }
+                    if (!password || password.length < 6) {
+                      setError('Please set a password with at least 6 characters.');
+                      return;
+                    }
+                    setError(null);
+                    setIsSubmitting(true);
+                    try {
+                      const user = await authService.continueWithGoogle(name, password);
+                      onSuccess(user);
+                    } catch (err: any) {
+                      setError(err.message || 'Google signup failed');
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  }}
+                  disabled={isSubmitting}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-sm shadow-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.01]"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                  </svg>
+                  <span>Continue with Gmail</span>
+                </button>
+
+                <p className="text-[11px] text-slate-400 text-center">
+                  Enter your Name & Password above, then click <strong>Continue with Gmail</strong> to link your Google account.
+                </p>
+              </div>
+            ) : (
+              /* Forgot Password */
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 block mb-1.5">Registered Gmail</label>
+                  <div className="flex items-center gap-2.5 bg-slate-950 px-3.5 py-2.5 rounded-xl border border-slate-800">
+                    <Mail className="w-4 h-4 text-slate-400" />
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="alex@gmail.com"
+                      className="bg-transparent text-sm text-white outline-none w-full placeholder-slate-500"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs transition-all shadow-lg"
+                >
+                  Send Password Reset Link
+                </button>
+              </form>
+            )}
+          </div>
 
           {/* Cancel / Return option */}
           {onCancel && (

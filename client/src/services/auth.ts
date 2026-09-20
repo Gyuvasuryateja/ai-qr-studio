@@ -4,7 +4,9 @@ import {
   signOut as fbSignOut, 
   sendPasswordResetEmail,
   updateProfile,
-  onAuthStateChanged
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
 import { 
   doc, 
@@ -21,6 +23,8 @@ import {
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { auth, db, storage } from './firebase';
 import { QRCodeRecord } from '../types';
+
+const googleProvider = new GoogleAuthProvider();
 
 export interface User {
   id: string;
@@ -142,6 +146,45 @@ export const authService = {
         throw new Error('No registered account found with this email.');
       }
       throw new Error(err.message || 'Failed to send password reset email.');
+    }
+  },
+
+  async continueWithGoogle(presetName?: string, presetPassword?: string): Promise<User> {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const fbUser = result.user;
+      const userName = presetName?.trim() || fbUser.displayName || fbUser.email?.split('@')[0] || 'User';
+
+      if (presetName?.trim() && (!fbUser.displayName || fbUser.displayName !== presetName.trim())) {
+        await updateProfile(fbUser, { displayName: presetName.trim() }).catch(() => {});
+      }
+
+      const sessionUser: User = {
+        id: fbUser.uid,
+        name: userName,
+        email: fbUser.email || '',
+        createdAt: fbUser.metadata.creationTime || new Date().toISOString()
+      };
+
+      // Store / sync user record in Firestore
+      try {
+        await setDoc(doc(db, 'users', fbUser.uid), {
+          id: fbUser.uid,
+          name: userName,
+          email: fbUser.email || '',
+          lastLoginAt: new Date().toISOString()
+        }, { merge: true });
+      } catch (e) {
+        console.warn('Firestore user profile sync error:', e);
+      }
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionUser));
+      return sessionUser;
+    } catch (err: any) {
+      if (err.code === 'auth/popup-closed-by-user') {
+        throw new Error('Sign in popup was closed before completing. Please try again.');
+      }
+      throw new Error(err.message || 'Failed to authenticate with Google.');
     }
   },
 
