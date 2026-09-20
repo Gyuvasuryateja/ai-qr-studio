@@ -6,7 +6,8 @@ import {
   updateProfile,
   onAuthStateChanged,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  getAdditionalUserInfo
 } from 'firebase/auth';
 import { 
   doc, 
@@ -179,35 +180,48 @@ export const authService = {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const fbUser = result.user;
+      const additionalInfo = getAdditionalUserInfo(result);
 
-      // Check if user account already exists in Firestore
+      // Determine if this is an existing account
       let isExisting = false;
       let existingName: string | undefined;
       let originalCreatedAt = fbUser.metadata.creationTime || new Date().toISOString();
 
+      // 1. Check if Firebase says this is not a new user
+      if (additionalInfo && !additionalInfo.isNewUser) {
+        isExisting = true;
+      }
+
+      // 2. Check Firestore for existing user record
       try {
         const userDocRef = doc(db, 'users', fbUser.uid);
         const userSnap = await getDoc(userDocRef);
         if (userSnap.exists()) {
           isExisting = true;
           const data = userSnap.data();
-          existingName = data?.name;
+          if (data?.name) existingName = data.name;
           if (data?.createdAt) originalCreatedAt = data.createdAt;
-        } else {
-          // If creation time is more than 30 seconds ago, it was an existing Firebase user
-          const creationMs = new Date(fbUser.metadata.creationTime || 0).getTime();
-          const lastLoginMs = new Date(fbUser.metadata.lastSignInTime || 0).getTime();
-          if (creationMs > 0 && lastLoginMs - creationMs > 30000) {
+        } else if (fbUser.email) {
+          // Double check by email in case uid changed or email query
+          const usersCol = collection(db, 'users');
+          const emailQuery = query(usersCol, where('email', '==', fbUser.email.toLowerCase()));
+          const emailSnap = await getDocs(emailQuery);
+          if (!emailSnap.empty) {
             isExisting = true;
+            const data = emailSnap.docs[0].data();
+            if (data?.name) existingName = data.name;
+            if (data?.createdAt) originalCreatedAt = data.createdAt;
           }
         }
       } catch (checkErr) {
         console.warn('Could not verify existing account in Firestore:', checkErr);
       }
 
-      // If already existing, keep their previous name; if new, use presetName or Google name
-      const finalName = (isExisting && existingName) 
-        ? existingName 
+      // STRICT RULE: One user, one Gmail, one account!
+      // If the account already exists with this Gmail, NEVER overwrite their previous name or create a new profile.
+      // Always restore their previously created account!
+      const finalName = isExisting
+        ? (existingName || fbUser.displayName || 'User')
         : (presetName?.trim() || fbUser.displayName || fbUser.email?.split('@')[0] || 'User');
 
       if (!isExisting && presetName?.trim() && (!fbUser.displayName || fbUser.displayName !== presetName.trim())) {

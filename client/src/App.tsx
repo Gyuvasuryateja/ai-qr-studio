@@ -87,9 +87,9 @@ export const App: React.FC = () => {
     };
   }, [activeTab]);
 
-  const showToast = (message: string) => {
+  const showToast = (message: string, duration = 3000) => {
     setToastMessage(message);
-    setTimeout(() => setToastMessage(null), 3000);
+    setTimeout(() => setToastMessage(null), duration);
   };
 
   const handleSavedNotification = (record: QRCodeRecord) => {
@@ -149,7 +149,7 @@ export const App: React.FC = () => {
   const handleAuthSuccess = (user: User) => {
     setCurrentUser(user);
     if (user.isExistingAccount) {
-      showToast(`Account already exists with this Gmail! Loaded your previous account: ${user.name}`);
+      showToast(`Account already exists with this Gmail! Loaded your previously created account (${user.name})`, 5000);
     } else {
       showToast(`Welcome, ${user.name}!`);
     }
