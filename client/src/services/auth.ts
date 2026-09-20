@@ -384,19 +384,67 @@ export const cloudStorageService = {
     }
   },
 
-  // Get all QR codes for a user from Cloud Firestore
-  async getQRCodes(userId?: string): Promise<QRCodeRecord[]> {
-    const qrsCollection = collection(db, 'qrcodes');
-    let q = query(qrsCollection);
-    if (userId) {
-      q = query(qrsCollection, where('userId', '==', userId));
+  // Get all QR codes for a user from Cloud Firestore with local cache backup
+  async getQRCodes(userId?: string, userEmail?: string): Promise<QRCodeRecord[]> {
+    const recordsMap = new Map<string, QRCodeRecord>();
+    const CACHE_KEY = `cached_qrs_${userId || 'anon'}`;
+
+    // Load from local storage cache first
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const parsed: QRCodeRecord[] = JSON.parse(cached);
+        parsed.forEach(r => recordsMap.set(r.id, r));
+      }
+    } catch {}
+
+    try {
+      const qrsCollection = collection(db, 'qrcodes');
+
+      // 1. Query by userId
+      if (userId) {
+        const userQ = query(qrsCollection, where('userId', '==', userId));
+        const userSnap = await getDocs(userQ);
+        userSnap.forEach(d => recordsMap.set(d.id, d.data() as QRCodeRecord));
+      }
+
+      // 2. Query by userEmail as secondary link
+      if (userEmail) {
+        const emailQ = query(qrsCollection, where('userEmail', '==', userEmail.toLowerCase()));
+        const emailSnap = await getDocs(emailQ);
+        emailSnap.forEach(d => recordsMap.set(d.id, d.data() as QRCodeRecord));
+      }
+
+      // If no user filter provided, get all
+      if (!userId && !userEmail) {
+        const allSnap = await getDocs(query(qrsCollection));
+        allSnap.forEach(d => recordsMap.set(d.id, d.data() as QRCodeRecord));
+      }
+    } catch (err) {
+      console.warn('Firestore getQRCodes fetch error:', err);
     }
-    const snap = await getDocs(q);
-    const records: QRCodeRecord[] = [];
-    snap.forEach(docSnap => records.push(docSnap.data() as QRCodeRecord));
-    return records.sort((a, b) => 
+
+    const records = Array.from(recordsMap.values()).sort((a, b) => 
       new Date(b.stats.createdAt).getTime() - new Date(a.stats.createdAt).getTime()
     );
+
+    // Filter out only ones that have actually expired (> 30 days)
+    const nowMs = Date.now();
+    const activeRecords = records.filter(record => {
+      if (!record.stats) return true;
+      const createdMs = new Date(record.stats.createdAt).getTime();
+      const expiresMs = record.stats.expiresAt 
+        ? new Date(record.stats.expiresAt).getTime() 
+        : (createdMs + 30 * 24 * 60 * 60 * 1000);
+      return nowMs <= expiresMs; // Retain strictly for 30 days!
+    });
+
+    // Save back to persistent local cache
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(activeRecords));
+    } catch {}
+
+    return activeRecords;
   },
 
   // Increment view counter permanently

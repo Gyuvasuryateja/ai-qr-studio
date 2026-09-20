@@ -38,7 +38,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onSelectQR, onNewQ
     try {
       setLoading(true);
       // Fetch user's QR codes if logged in
-      const data = await api.getQRCodes(currentUser?.id);
+      const data = await api.getQRCodes(currentUser?.id, currentUser?.email);
       setQrs(data);
     } catch (err) {
       console.error('Failed to load QR list:', err);
