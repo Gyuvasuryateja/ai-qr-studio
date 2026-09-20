@@ -369,9 +369,12 @@ export const cloudStorageService = {
       }
     };
 
+    // Sanitize record to eliminate any undefined fields which Firestore rejects
+    const cleanRecord = JSON.parse(JSON.stringify(fullRecord));
+
     const docRef = doc(db, 'qrcodes', record.id);
     try {
-      await setDoc(docRef, fullRecord, { merge: true });
+      await setDoc(docRef, cleanRecord, { merge: true });
     } catch (firestoreErr) {
       console.warn('Firestore setDoc failed (e.g. security rules), proceeding with record:', firestoreErr);
     }
@@ -384,7 +387,7 @@ export const cloudStorageService = {
       const docRef = doc(db, 'qrcodes', id);
       const snapPromise = getDoc(docRef);
       const timeoutPromise = new Promise<null>((_, reject) =>
-        setTimeout(() => reject(new Error('Firestore getDoc timeout')), 2500)
+        setTimeout(() => reject(new Error('Firestore getDoc timeout')), 6000)
       );
       const snap = await Promise.race([snapPromise, timeoutPromise]) as any;
       if (!snap || !snap.exists()) return null;

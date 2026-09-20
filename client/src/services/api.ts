@@ -191,10 +191,25 @@ export const api = {
       return null;
     })();
 
-    // 3. Fast race: return as soon as either completes (or timeout after 1.5s max)
-    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
+    // 3. Wait for real remote persistence (server or Firestore) with a generous 5s window
+    const remoteSave = new Promise<QRCodeRecord | null>((resolve) => {
+      let resolved = false;
+      let settled = 0;
+      const onDone = (res: QRCodeRecord | null) => {
+        settled++;
+        if (res && !resolved) {
+          resolved = true;
+          resolve(res);
+        } else if (settled >= 2 && !resolved) {
+          resolve(null);
+        }
+      };
+      firestoreSave.then(onDone).catch(() => onDone(null));
+      serverSave.then(onDone).catch(() => onDone(null));
+    });
 
-    const fastest = await Promise.race([firestoreSave, serverSave, timeoutPromise]);
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
+    const fastest = await Promise.race([remoteSave, timeoutPromise]);
     if (fastest) return fastest;
 
     // Guaranteed fallback return without blocking the user interface

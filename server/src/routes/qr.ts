@@ -30,24 +30,21 @@ qrRouter.get('/:id', (req, res) => {
 // CREATE or UPDATE QR code
 qrRouter.post('/', (req, res) => {
   try {
-    const { id, userId, userEmail, title, mode, content, style } = req.body;
-    
-    if (!userId) {
-      res.status(401).json({ error: 'Authentication required. Please sign up or sign in to publish QR codes.' });
-      return;
-    }
+    const { id, userId, userEmail, title, mode, content, style, stats } = req.body;
 
     const existing = id ? storage.getById(id) : null;
     const recordId = id || nanoid(10);
+    const now = new Date();
+    const defaultExpiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
     const record: QRCodeRecord = {
       id: recordId,
-      userId: userId || existing?.userId,
+      userId: userId || existing?.userId || 'anonymous',
       userEmail: userEmail || existing?.userEmail,
-      title: title || '',
-      mode: mode || 'url',
-      content: content || { raw: '' },
-      style: style || {
+      title: title || existing?.title || 'Custom QR',
+      mode: mode || existing?.mode || 'url',
+      content: content || existing?.content || { raw: '' },
+      style: style || existing?.style || {
         dotType: 'rounded',
         colorType: 'linear',
         singleColor: '#4f46e5',
@@ -62,13 +59,13 @@ qrRouter.post('/', (req, res) => {
         margin: 10,
         errorCorrectionLevel: 'Q'
       },
-      stats: existing?.stats || {
-        views: 0,
-        scans: 0,
-        reactions: {},
-        createdAt: new Date().toISOString(),
-        lastAccessedAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      stats: {
+        views: stats?.views ?? existing?.stats?.views ?? 0,
+        scans: stats?.scans ?? existing?.stats?.scans ?? 0,
+        reactions: stats?.reactions ?? existing?.stats?.reactions ?? {},
+        createdAt: stats?.createdAt ?? existing?.stats?.createdAt ?? now.toISOString(),
+        lastAccessedAt: now.toISOString(),
+        expiresAt: stats?.expiresAt ?? existing?.stats?.expiresAt ?? defaultExpiresAt
       }
     };
 

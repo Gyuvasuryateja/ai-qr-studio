@@ -39,16 +39,33 @@ export const PublicQRViewer: React.FC<PublicQRViewerProps> = ({ qrId, onBackToSt
   useEffect(() => {
     let isMounted = true;
 
-    async function loadData() {
+    async function loadData(retryCount = 0) {
       try {
         setLoading(true);
-        const data = await api.getQRCode(qrId);
-        if (isMounted) {
-          // Check 1-month (30 days) expiration
-          if (data?.stats) {
-            const createdAtTime = new Date(data.stats.createdAt).getTime();
-            const expiresAtTime = data.stats.expiresAt ? new Date(data.stats.expiresAt).getTime() : (createdAtTime + 30 * 24 * 60 * 60 * 1000);
-            if (Date.now() > expiresAtTime) {
+        let data: QRCodeRecord | null = null;
+        try {
+          data = await api.getQRCode(qrId);
+        } catch (fetchErr) {
+          // If first attempt failed and we haven't retried yet, wait 1.2s and retry
+          if (retryCount < 2) {
+            await new Promise(res => setTimeout(res, 1200));
+            if (isMounted) return loadData(retryCount + 1);
+          }
+          throw fetchErr;
+        }
+
+        if (isMounted && data) {
+          // Check 1-month (30 days) expiration with 30-day strict guarantee
+          if (data.stats) {
+            const now = Date.now();
+            const createdAtTime = data.stats.createdAt ? new Date(data.stats.createdAt).getTime() : now;
+            const expiresAtTime = data.stats.expiresAt 
+              ? new Date(data.stats.expiresAt).getTime() 
+              : (createdAtTime + 30 * 24 * 60 * 60 * 1000);
+            
+            // Valid if within 30 days (expiresAtTime > now) OR created within last 30 days
+            const isExpired = now > expiresAtTime && (now - createdAtTime > 30 * 24 * 60 * 60 * 1000);
+            if (isExpired) {
               setError('This Custom QR code has expired after its 30-day validity period.');
               return;
             }
@@ -64,7 +81,7 @@ export const PublicQRViewer: React.FC<PublicQRViewerProps> = ({ qrId, onBackToSt
         }
       } catch (err: any) {
         if (isMounted) {
-          setError(err.message || 'QR Card not found');
+          setError(err.message || 'QR Experience Not Found');
         }
       } finally {
         if (isMounted) setLoading(false);
@@ -184,16 +201,24 @@ export const PublicQRViewer: React.FC<PublicQRViewerProps> = ({ qrId, onBackToSt
           </div>
           <h2 className="text-xl font-bold text-white">QR Experience Not Found</h2>
           <p className="text-xs text-slate-400">
-            This QR code may have expired or been deleted by the author.
+            {error || 'This QR code may have expired after 30 days or the connection is still syncing.'}
           </p>
-          {onBackToStudio && (
+          <div className="flex items-center justify-center gap-2 pt-2">
             <button
-              onClick={onBackToStudio}
-              className="mt-4 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all"
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-all"
             >
-              Create a New Custom QR
+              Refresh Scan
             </button>
-          )}
+            {onBackToStudio && (
+              <button
+                onClick={onBackToStudio}
+                className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all"
+              >
+                Create New QR
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
