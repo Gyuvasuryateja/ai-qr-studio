@@ -60,18 +60,38 @@ export const api = {
     return await res.json();
   },
 
-  // Get single QR code by ID (loads from Cloud Firestore with server fallback)
+  // Get single QR code by ID (fast parallel fetch from Firestore & Server)
   async getQRCode(id: string): Promise<QRCodeRecord> {
-    try {
+    const fetchFromServer = async (): Promise<QRCodeRecord> => {
+      const res = await fetch(`${API_BASE}/qr/${id}`);
+      if (!res.ok) throw new Error('Not found on server');
+      return await res.json();
+    };
+
+    const fetchFromFirestore = async (): Promise<QRCodeRecord> => {
       const { cloudStorageService } = await import('./auth');
-      const cloudRecord = await cloudStorageService.getQRCode(id);
-      if (cloudRecord) return cloudRecord;
-    } catch (e) {
-      console.warn('Firestore getQRCode fallback to server:', e);
+      const record = await cloudStorageService.getQRCode(id);
+      if (!record) throw new Error('Not found in Firestore');
+      return record;
+    };
+
+    // Parallel race: check both and return the fastest successful result
+    try {
+      return await new Promise<QRCodeRecord>((resolve, reject) => {
+        let errors = 0;
+        const total = 2;
+        const onError = (e: any) => {
+          errors++;
+          if (errors === total) reject(new Error('QR not found'));
+        };
+        fetchFromServer().then(resolve).catch(onError);
+        fetchFromFirestore().then(resolve).catch(onError);
+      });
+    } catch {
+      const res = await fetch(`${API_BASE}/qr/${id}`);
+      if (!res.ok) throw new Error('QR Code destination not found or expired.');
+      return await res.json();
     }
-    const res = await fetch(`${API_BASE}/qr/${id}`);
-    if (!res.ok) throw new Error('QR Code not found');
-    return await res.json();
   },
 
   // Save (create or update) QR code permanently into Cloud Firestore & Storage

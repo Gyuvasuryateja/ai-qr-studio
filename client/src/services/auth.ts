@@ -370,10 +370,18 @@ export const cloudStorageService = {
 
   // Get single QR code from Cloud Firestore
   async getQRCode(id: string): Promise<QRCodeRecord | null> {
-    const docRef = doc(db, 'qrcodes', id);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) return null;
-    return snap.data() as QRCodeRecord;
+    try {
+      const docRef = doc(db, 'qrcodes', id);
+      const snapPromise = getDoc(docRef);
+      const timeoutPromise = new Promise<null>((_, reject) =>
+        setTimeout(() => reject(new Error('Firestore getDoc timeout')), 2500)
+      );
+      const snap = await Promise.race([snapPromise, timeoutPromise]) as any;
+      if (!snap || !snap.exists()) return null;
+      return snap.data() as QRCodeRecord;
+    } catch {
+      return null;
+    }
   },
 
   // Get all QR codes for a user from Cloud Firestore
