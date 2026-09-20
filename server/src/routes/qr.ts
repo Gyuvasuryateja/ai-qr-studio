@@ -104,7 +104,8 @@ qrRouter.post('/:id/react', (req, res) => {
 
 // DELETE QR code
 qrRouter.delete('/:id', (req, res) => {
-  const success = storage.delete(req.params.id);
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const success = storage.delete(id);
   if (!success) {
     res.status(404).json({ error: 'QR Code not found' });
     return;
