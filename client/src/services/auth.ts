@@ -35,6 +35,19 @@ export interface User {
 
 const STORAGE_KEY = 'custom_qr_auth_user';
 
+type AuthListener = (user: User | null) => void;
+const authListeners: AuthListener[] = [];
+
+export function notifyAuthListeners(user: User | null) {
+  authListeners.forEach(listener => {
+    try {
+      listener(user);
+    } catch (e) {
+      console.error('Error in auth listener:', e);
+    }
+  });
+}
+
 // Listen to Firebase Auth state
 if (typeof window !== 'undefined') {
   onAuthStateChanged(auth, (fbUser) => {
@@ -46,13 +59,25 @@ if (typeof window !== 'undefined') {
         createdAt: fbUser.metadata.creationTime || new Date().toISOString()
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      notifyAuthListeners(user);
     } else {
       localStorage.removeItem(STORAGE_KEY);
+      notifyAuthListeners(null);
     }
   });
 }
 
 export const authService = {
+  subscribe(listener: AuthListener): () => void {
+    authListeners.push(listener);
+    // Call immediately with current cached user
+    listener(this.getCurrentUser());
+    return () => {
+      const idx = authListeners.indexOf(listener);
+      if (idx !== -1) authListeners.splice(idx, 1);
+    };
+  },
+
   getCurrentUser(): User | null {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -179,6 +204,7 @@ export const authService = {
       }
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionUser));
+      notifyAuthListeners(sessionUser);
       return sessionUser;
     } catch (err: any) {
       if (err.code === 'auth/popup-closed-by-user') {

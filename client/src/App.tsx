@@ -73,7 +73,19 @@ export const App: React.FC = () => {
     // Load saved API key
     const savedKey = localStorage.getItem('Smart_api_key');
     if (savedKey) setApiKey(savedKey);
-  }, []);
+
+    // Subscribe to auth state updates across Firebase
+    const unsubscribeAuth = authService.subscribe((user) => {
+      setCurrentUser(user);
+      if (user && activeTab === 'auth') {
+        setActiveTab('studio');
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+    };
+  }, [activeTab]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
