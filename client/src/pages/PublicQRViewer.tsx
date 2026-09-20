@@ -98,12 +98,12 @@ export const PublicQRViewer: React.FC<PublicQRViewerProps> = ({ qrId, onBackToSt
           const translated = await api.translateText(textsToTranslate, selectedLang);
           
           if (isMounted) {
-            if (Array.isArray(translated)) {
+            if (Array.isArray(translated) && translated.length > 0) {
               if (enhanced) {
                 const translatedObj: any = {
-                  title: translated[0],
-                  headline: translated[1],
-                  formattedContent: translated[2]
+                  title: translated[0] || enhanced.title,
+                  headline: translated[1] || enhanced.headline,
+                  formattedContent: translated[2] || enhanced.formattedContent
                 };
                 if (enhanced.keyTakeaways) {
                   translatedObj.keyTakeaways = translated.slice(3);
@@ -112,12 +112,20 @@ export const PublicQRViewer: React.FC<PublicQRViewerProps> = ({ qrId, onBackToSt
               } else {
                 setDynamicTranslations(prev => ({ 
                   ...prev, 
-                  [selectedLang]: { title: translated[0], formattedContent: translated[1] } 
+                  [selectedLang]: { 
+                    title: translated[0] || record.title, 
+                    formattedContent: translated[1] || translated[0] || record.content.raw 
+                  } 
                 }));
               }
-            } else {
-              // fallback
-              setDynamicTranslations(prev => ({ ...prev, [selectedLang]: { formattedContent: translated } }));
+            } else if (typeof translated === 'string') {
+              setDynamicTranslations(prev => ({ 
+                ...prev, 
+                [selectedLang]: { 
+                  title: record.title, 
+                  formattedContent: translated 
+                } 
+              }));
             }
           }
         } catch (e) {

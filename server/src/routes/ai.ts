@@ -107,13 +107,23 @@ aiRouter.post('/translate', async (req, res) => {
       return;
     }
     
+    const safeTranslate = async (str: string) => {
+      if (!str || !str.trim()) return '';
+      try {
+        return await translate(str, targetLang);
+      } catch (err) {
+        console.warn('Single text translation error for:', str, err);
+        return str;
+      }
+    };
+
     if (Array.isArray(text)) {
-      const translations = await Promise.all(text.map(t => translate(t, targetLang)));
+      const translations = await Promise.all(text.map(t => safeTranslate(t)));
       res.json({ translation: translations });
       return;
     }
 
-    const translatedText = await translate(text, targetLang);
+    const translatedText = await safeTranslate(text);
     res.json({ translation: translatedText });
   } catch (error: any) {
     console.error('Translation error:', error);
