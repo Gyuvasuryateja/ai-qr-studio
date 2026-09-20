@@ -38,7 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="font-extrabold text-base sm:text-lg text-white tracking-tight">Custom QR</span>
               <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 font-semibold border border-brand-500/30">STUDIO</span>
             </div>
-            <p className="hidden md:block text-[11px] text-slate-400 font-medium">Interactive Reveal & Generative QR</p>
+            <p className="hidden md:block text-[11px] text-slate-400 font-medium">Custom Voice & Photo Messages</p>
           </div>
         </div>
 

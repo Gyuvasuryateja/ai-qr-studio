@@ -258,7 +258,7 @@ export const App: React.FC = () => {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 py-6 text-center text-xs text-slate-500">
-        <p>Custom QR & Interactive Reveal Experience • Built with React, Tailwind CSS, Express & Smart Processing</p>
+        <p>Custom QR Studio • Custom Voice, Photo & Message Experiences</p>
       </footer>
 
       {/* Settings Modal */}

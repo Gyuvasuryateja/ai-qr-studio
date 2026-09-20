@@ -41,9 +41,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   };
 
   // Social share urls
-  const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(`${record.title}\n\n${textPayload}\n\n👉 View interactive card: ${publicUrl}`)}`;
+  const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(`${record.title}\n\n${textPayload}\n\n👉 Open Custom QR Link: ${publicUrl}`)}`;
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(`✨ ${record.title} — created with Custom QR`)}&url=${encodeURIComponent(publicUrl)}`;
-  const emailUrl = `mailto:?subject=${encodeURIComponent(record.title)}&body=${encodeURIComponent(`${textPayload}\n\nView interactive card here:\n${publicUrl}`)}`;
+  const emailUrl = `mailto:?subject=${encodeURIComponent(record.title)}&body=${encodeURIComponent(`${textPayload}\n\nView Custom QR here:\n${publicUrl}`)}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">

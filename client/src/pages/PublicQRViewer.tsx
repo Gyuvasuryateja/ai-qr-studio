@@ -421,7 +421,7 @@ export const PublicQRViewer: React.FC<PublicQRViewerProps> = ({ qrId, onBackToSt
 
       {/* Footer Branding */}
       <footer className="relative z-10 text-center py-5 text-xs text-slate-500 border-t border-slate-900">
-        <p>Created and verified with <strong>Custom QR</strong> • Interactive Experience</p>
+        <p>Created with <strong>Custom QR</strong></p>
       </footer>
 
       {/* Share Modal */}
