@@ -45,59 +45,102 @@ export const api = {
     return await res.json();
   },
 
-  // Get all QR codes
+  // Get all QR codes (loads from Cloud Firestore with server fallback)
   async getQRCodes(userId?: string): Promise<QRCodeRecord[]> {
+    try {
+      const { cloudStorageService } = await import('./auth');
+      const records = await cloudStorageService.getQRCodes(userId);
+      if (records && records.length > 0) return records;
+    } catch (e) {
+      console.warn('Firestore getQRCodes fallback to server:', e);
+    }
     const url = userId ? `${API_BASE}/qr?userId=${encodeURIComponent(userId)}` : `${API_BASE}/qr`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error('Failed to fetch QR codes');
+    if (!res.ok) return [];
     return await res.json();
   },
 
-  // Get single QR code by ID
+  // Get single QR code by ID (loads from Cloud Firestore with server fallback)
   async getQRCode(id: string): Promise<QRCodeRecord> {
+    try {
+      const { cloudStorageService } = await import('./auth');
+      const cloudRecord = await cloudStorageService.getQRCode(id);
+      if (cloudRecord) return cloudRecord;
+    } catch (e) {
+      console.warn('Firestore getQRCode fallback to server:', e);
+    }
     const res = await fetch(`${API_BASE}/qr/${id}`);
     if (!res.ok) throw new Error('QR Code not found');
     return await res.json();
   },
 
-  // Save (create or update) QR code
+  // Save (create or update) QR code permanently into Cloud Firestore & Storage
   async saveQRCode(record: Partial<QRCodeRecord>): Promise<QRCodeRecord> {
-    const res = await fetch(`${API_BASE}/qr`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(record)
-    });
-    if (!res.ok) {
-      let msg = 'Failed to save QR code';
-      try {
-        const errorData = await res.json();
-        if (errorData?.error) msg = errorData.error;
-      } catch {}
-      throw new Error(msg);
+    try {
+      const { cloudStorageService } = await import('./auth');
+      const savedCloud = await cloudStorageService.saveQRCode(record);
+      // Sync to local server in background as mirror
+      fetch(`${API_BASE}/qr`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(savedCloud)
+      }).catch(() => {});
+      return savedCloud;
+    } catch (e) {
+      console.warn('Firestore save fallback to server:', e);
+      const res = await fetch(`${API_BASE}/qr`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record)
+      });
+      if (!res.ok) {
+        let msg = 'Failed to save QR code';
+        try {
+          const errorData = await res.json();
+          if (errorData?.error) msg = errorData.error;
+        } catch {}
+        throw new Error(msg);
+      }
+      return await res.json();
     }
-    return await res.json();
   },
 
-  // Increment view counter
+  // Increment view counter permanently
   async recordView(id: string): Promise<{ views: number }> {
-    const res = await fetch(`${API_BASE}/qr/${id}/view`, { method: 'POST' });
-    if (!res.ok) throw new Error('Failed to record view');
-    return await res.json();
+    try {
+      const { cloudStorageService } = await import('./auth');
+      return await cloudStorageService.recordView(id);
+    } catch (e) {
+      const res = await fetch(`${API_BASE}/qr/${id}/view`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to record view');
+      return await res.json();
+    }
   },
 
-  // Record emoji reaction
+  // Record emoji reaction permanently
   async recordReaction(id: string, emoji: string): Promise<{ reactions: Record<string, number> }> {
-    const res = await fetch(`${API_BASE}/qr/${id}/react`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ emoji })
-    });
-    if (!res.ok) throw new Error('Failed to record reaction');
-    return await res.json();
+    try {
+      const { cloudStorageService } = await import('./auth');
+      return await cloudStorageService.recordReaction(id, emoji);
+    } catch (e) {
+      const res = await fetch(`${API_BASE}/qr/${id}/react`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emoji })
+      });
+      if (!res.ok) throw new Error('Failed to record reaction');
+      return await res.json();
+    }
   },
 
-  // Delete QR Code
+  // Delete QR Code permanently from Cloud Firestore
   async deleteQRCode(id: string): Promise<boolean> {
+    try {
+      const { cloudStorageService } = await import('./auth');
+      await cloudStorageService.deleteQRCode(id);
+    } catch (e) {
+      console.warn('Firestore delete fallback:', e);
+    }
     const res = await fetch(`${API_BASE}/qr/${id}`, { method: 'DELETE' });
     return res.ok;
   },

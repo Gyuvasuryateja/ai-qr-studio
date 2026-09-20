@@ -35,7 +35,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessMessage(null);
@@ -43,25 +43,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     try {
       if (mode === 'signup') {
-        const user = authService.signUp(name, email, password);
+        const user = await authService.signUp(name, email, password);
         onSuccess(user);
         onClose();
       } else if (mode === 'signin') {
-        const user = authService.signIn(email, password);
+        const user = await authService.signIn(email, password);
         onSuccess(user);
         onClose();
       } else if (mode === 'forgot') {
-        if (password !== confirmPassword) {
-          throw new Error('New passwords do not match. Please recheck.');
-        }
-        authService.resetPassword(email, password);
-        setSuccessMessage('Password reset successfully! You can now sign in.');
+        await authService.resetPassword(email);
+        setSuccessMessage('Password reset email sent! Please check your inbox.');
         setPassword('');
         setConfirmPassword('');
         setTimeout(() => {
           setMode('signin');
           setSuccessMessage(null);
-        }, 1600);
+        }, 2000);
       }
     } catch (err: any) {
       setError(err.message || 'Authentication failed');

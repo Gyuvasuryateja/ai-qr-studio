@@ -31,7 +31,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setSuccessMessage(null);
   }, [initialMode]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessMessage(null);
@@ -39,23 +39,20 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
     try {
       if (mode === 'signup') {
-        const user = authService.signUp(name, email, password);
+        const user = await authService.signUp(name, email, password);
         onSuccess(user);
       } else if (mode === 'signin') {
-        const user = authService.signIn(email, password);
+        const user = await authService.signIn(email, password);
         onSuccess(user);
       } else if (mode === 'forgot') {
-        if (password !== confirmPassword) {
-          throw new Error('New passwords do not match. Please recheck.');
-        }
-        authService.resetPassword(email, password);
-        setSuccessMessage('Password reset successfully! You can now sign in with your new password.');
+        await authService.resetPassword(email);
+        setSuccessMessage('Password reset email sent! Please check your inbox for instructions to reset your password.');
         setPassword('');
         setConfirmPassword('');
         setTimeout(() => {
           setMode('signin');
           setSuccessMessage(null);
-        }, 1800);
+        }, 2200);
       }
     } catch (err: any) {
       setError(err.message || 'Authentication failed');

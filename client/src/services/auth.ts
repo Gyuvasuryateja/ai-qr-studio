@@ -1,3 +1,27 @@
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut as fbSignOut, 
+  sendPasswordResetEmail,
+  updateProfile,
+  onAuthStateChanged
+} from 'firebase/auth';
+import { 
+  doc, 
+  setDoc, 
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  deleteDoc,
+  updateDoc,
+  increment
+} from 'firebase/firestore';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { auth, db, storage } from './firebase';
+import { QRCodeRecord } from '../types';
+
 export interface User {
   id: string;
   name: string;
@@ -6,23 +30,22 @@ export interface User {
 }
 
 const STORAGE_KEY = 'custom_qr_auth_user';
-const USERS_DB_KEY = 'custom_qr_registered_users';
 
-interface RegisteredUser extends User {
-  passwordHash: string; // client-side simulation or direct
-}
-
-function getStoredUsers(): RegisteredUser[] {
-  try {
-    const raw = localStorage.getItem(USERS_DB_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveStoredUsers(users: RegisteredUser[]) {
-  localStorage.setItem(USERS_DB_KEY, JSON.stringify(users));
+// Listen to Firebase Auth state
+if (typeof window !== 'undefined') {
+  onAuthStateChanged(auth, (fbUser) => {
+    if (fbUser) {
+      const user: User = {
+        id: fbUser.uid,
+        name: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
+        email: fbUser.email || '',
+        createdAt: fbUser.metadata.creationTime || new Date().toISOString()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  });
 }
 
 export const authService = {
@@ -35,88 +58,241 @@ export const authService = {
     }
   },
 
-  signUp(name: string, email: string, password: string):User {
+  async signUp(name: string, email: string, password: string): Promise<User> {
     const cleanEmail = email.trim().toLowerCase();
     const cleanName = name.trim();
     if (!cleanEmail || !password || !cleanName) {
       throw new Error('Please fill in all fields.');
     }
 
-    const users = getStoredUsers();
-    const existing = users.find(u => u.email.toLowerCase() === cleanEmail);
-    if (existing) {
-      throw new Error('An account with this email already exists. Please Sign In.');
+    try {
+      const credential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+      await updateProfile(credential.user, { displayName: cleanName });
+
+      const sessionUser: User = {
+        id: credential.user.uid,
+        name: cleanName,
+        email: cleanEmail,
+        createdAt: new Date().toISOString()
+      };
+
+      // Store user record in Firestore
+      try {
+        await setDoc(doc(db, 'users', credential.user.uid), {
+          id: credential.user.uid,
+          name: cleanName,
+          email: cleanEmail,
+          createdAt: new Date().toISOString()
+        });
+      } catch (e) {
+        console.warn('Firestore user profile sync error:', e);
+      }
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionUser));
+      return sessionUser;
+    } catch (err: any) {
+      if (err.code === 'auth/email-already-in-use') {
+        throw new Error('An account with this email already exists. Please Sign In.');
+      }
+      if (err.code === 'auth/weak-password') {
+        throw new Error('Password should be at least 6 characters.');
+      }
+      if (err.code === 'auth/invalid-email') {
+        throw new Error('Please provide a valid email address.');
+      }
+      throw new Error(err.message || 'Failed to sign up.');
     }
-
-    const newUser: RegisteredUser = {
-      id: 'usr_' + Math.random().toString(36).substring(2, 11),
-      name: cleanName,
-      email: cleanEmail,
-      passwordHash: btoa(password), // simple obfuscation for local client auth
-      createdAt: new Date().toISOString()
-    };
-
-    users.push(newUser);
-    saveStoredUsers(users);
-
-    const sessionUser: User = {
-      id: newUser.id,
-      name: newUser.name,
-      email: newUser.email,
-      createdAt: newUser.createdAt
-    };
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionUser));
-    return sessionUser;
   },
 
-  signIn(email: string, password: string): User {
+  async signIn(email: string, password: string): Promise<User> {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail || !password) {
       throw new Error('Please enter your email and password.');
     }
 
-    const users = getStoredUsers();
-    const user = users.find(u => u.email.toLowerCase() === cleanEmail);
-    if (!user) {
-      throw new Error('No account found with this email. Please Sign Up first.');
+    try {
+      const credential = await signInWithEmailAndPassword(auth, cleanEmail, password);
+      const sessionUser: User = {
+        id: credential.user.uid,
+        name: credential.user.displayName || cleanEmail.split('@')[0] || 'User',
+        email: cleanEmail,
+        createdAt: credential.user.metadata.creationTime || new Date().toISOString()
+      };
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionUser));
+      return sessionUser;
+    } catch (err: any) {
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        throw new Error('Invalid email or password. Please check your credentials.');
+      }
+      throw new Error(err.message || 'Failed to sign in.');
     }
-
-    if (user.passwordHash !== btoa(password)) {
-      throw new Error('Incorrect password. Please try again.');
-    }
-
-    const sessionUser: User = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      createdAt: user.createdAt
-    };
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionUser));
-    return sessionUser;
   },
 
-  resetPassword(email: string, newPassword: string): void {
+  async resetPassword(email: string): Promise<void> {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) {
       throw new Error('Please enter your account email.');
     }
-    if (!newPassword || newPassword.length < 4) {
-      throw new Error('New password must be at least 4 characters long.');
-    }
 
-    const users = getStoredUsers();
-    const index = users.findIndex(u => u.email.toLowerCase() === cleanEmail);
-    if (index === -1) {
-      throw new Error('No registered account found with this email address.');
+    try {
+      await sendPasswordResetEmail(auth, cleanEmail);
+    } catch (err: any) {
+      if (err.code === 'auth/user-not-found') {
+        throw new Error('No registered account found with this email.');
+      }
+      throw new Error(err.message || 'Failed to send password reset email.');
     }
-
-    users[index].passwordHash = btoa(newPassword);
-    saveStoredUsers(users);
   },
 
-  signOut(): void {
+  async signOut(): Promise<void> {
+    try {
+      await fbSignOut(auth);
+    } catch (e) {
+      console.warn('Sign out error:', e);
+    }
     localStorage.removeItem(STORAGE_KEY);
+  }
+};
+
+/**
+ * Cloud Firestore & Storage database service for permanent QR persistence
+ */
+export const cloudStorageService = {
+  // Upload base64 audio to Firebase Storage bucket and return permanent URL
+  async uploadAudio(qrId: string, base64Audio: string): Promise<string> {
+    if (!base64Audio.startsWith('data:')) return base64Audio;
+    try {
+      const audioRef = ref(storage, `audio/${qrId}_${Date.now()}.webm`);
+      await uploadString(audioRef, base64Audio, 'data_url');
+      return await getDownloadURL(audioRef);
+    } catch (err) {
+      console.warn('Storage upload fallback (storing direct data URL):', err);
+      return base64Audio;
+    }
+  },
+
+  // Upload base64 image to Firebase Storage bucket and return permanent URL
+  async uploadImage(qrId: string, base64Image: string): Promise<string> {
+    if (!base64Image.startsWith('data:')) return base64Image;
+    try {
+      const imgRef = ref(storage, `images/${qrId}_${Date.now()}.jpg`);
+      await uploadString(imgRef, base64Image, 'data_url');
+      return await getDownloadURL(imgRef);
+    } catch (err) {
+      console.warn('Image upload fallback:', err);
+      return base64Image;
+    }
+  },
+
+  // Save QR code permanently to Cloud Firestore
+  async saveQRCode(record: Partial<QRCodeRecord>): Promise<QRCodeRecord> {
+    if (!record.id) throw new Error('QR ID is required');
+
+    let customAudio = record.content?.customAudio;
+    if (customAudio && customAudio.startsWith('data:')) {
+      customAudio = await this.uploadAudio(record.id, customAudio);
+    }
+
+    let generatedImage = record.content?.generatedImage;
+    if (generatedImage && generatedImage.startsWith('data:')) {
+      generatedImage = await this.uploadImage(record.id, generatedImage);
+    }
+
+    const defaultStyle: QRCodeRecord['style'] = {
+      dotType: 'rounded',
+      colorType: 'linear',
+      singleColor: '#6366f1',
+      gradientColor1: '#6366f1',
+      gradientColor2: '#a855f7',
+      gradientRotation: 45,
+      bgColor: '#ffffff',
+      cornerSquareType: 'extra-rounded',
+      cornerSquareColor: '#4f46e5',
+      cornerDotType: 'dot',
+      cornerDotColor: '#ec4899',
+      margin: 10,
+      errorCorrectionLevel: 'Q'
+    };
+
+    const now = new Date().toISOString();
+    const fullRecord: QRCodeRecord = {
+      id: record.id,
+      userId: record.userId || 'anonymous',
+      userEmail: record.userEmail,
+      title: record.title || 'Custom QR',
+      mode: record.mode || 'url',
+      content: {
+        raw: record.content?.raw || '',
+        enhanced: record.content?.enhanced,
+        customUrl: record.content?.customUrl,
+        customAudio: customAudio,
+        generatedImage: generatedImage
+      },
+      style: record.style || defaultStyle,
+      stats: {
+        views: record.stats?.views || 0,
+        scans: record.stats?.scans || 0,
+        reactions: record.stats?.reactions || {},
+        createdAt: record.stats?.createdAt || now,
+        lastAccessedAt: record.stats?.lastAccessedAt || now
+      }
+    };
+
+    const docRef = doc(db, 'qrcodes', record.id);
+    await setDoc(docRef, fullRecord, { merge: true });
+    return fullRecord;
+  },
+
+  // Get single QR code from Cloud Firestore
+  async getQRCode(id: string): Promise<QRCodeRecord | null> {
+    const docRef = doc(db, 'qrcodes', id);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return null;
+    return snap.data() as QRCodeRecord;
+  },
+
+  // Get all QR codes for a user from Cloud Firestore
+  async getQRCodes(userId?: string): Promise<QRCodeRecord[]> {
+    const qrsCollection = collection(db, 'qrcodes');
+    let q = query(qrsCollection);
+    if (userId) {
+      q = query(qrsCollection, where('userId', '==', userId));
+    }
+    const snap = await getDocs(q);
+    const records: QRCodeRecord[] = [];
+    snap.forEach(docSnap => records.push(docSnap.data() as QRCodeRecord));
+    return records.sort((a, b) => 
+      new Date(b.stats.createdAt).getTime() - new Date(a.stats.createdAt).getTime()
+    );
+  },
+
+  // Increment view counter permanently
+  async recordView(id: string): Promise<{ views: number }> {
+    const docRef = doc(db, 'qrcodes', id);
+    await updateDoc(docRef, {
+      'stats.views': increment(1)
+    });
+    const snap = await getDoc(docRef);
+    const data = snap.data() as QRCodeRecord;
+    return { views: data?.stats?.views || 1 };
+  },
+
+  // Record emoji reaction permanently
+  async recordReaction(id: string, emoji: string): Promise<{ reactions: Record<string, number> }> {
+    const docRef = doc(db, 'qrcodes', id);
+    await updateDoc(docRef, {
+      [`stats.reactions.${emoji}`]: increment(1)
+    });
+    const snap = await getDoc(docRef);
+    const data = snap.data() as QRCodeRecord;
+    return { reactions: data?.stats?.reactions || {} };
+  },
+
+  // Delete QR Code permanently from Cloud Firestore
+  async deleteQRCode(id: string): Promise<boolean> {
+    const docRef = doc(db, 'qrcodes', id);
+    await deleteDoc(docRef);
+    return true;
   }
 };
