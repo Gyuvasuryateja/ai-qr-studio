@@ -267,6 +267,16 @@ export const StudioPage: React.FC<StudioPageProps> = ({
           </div>
 
           <div className="p-4 sm:p-6 rounded-3xl bg-slate-900/70 border border-slate-800 shadow-2xl backdrop-blur-xl">
+            {/* Prior Validity Information Banner */}
+            <div className="mb-4 p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-base">📅</span>
+                <p className="text-xs text-indigo-200">
+                  <strong className="text-white">1-Month (30 Days) Validity:</strong> Generated custom QR codes stay active for 30 days and are tracked in your dashboard.
+                </p>
+              </div>
+            </div>
+
             {studioTab === 'content' ? (
               <div className="bg-slate-900/50 rounded-2xl p-4 sm:p-6 border border-slate-800/80 shadow-2xl backdrop-blur-sm">
                 <div className="mb-4">

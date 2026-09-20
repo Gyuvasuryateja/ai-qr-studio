@@ -69,9 +69,14 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
         {/* Public Reveal Link */}
         <div>
-          <label className="text-xs font-semibold text-slate-300 block mb-1">
-            Public Interactive Destination Link:
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs font-semibold text-slate-300">
+              Public Custom QR Destination Link:
+            </label>
+            <span className="text-[10px] font-bold text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
+              Valid for 30 Days
+            </span>
+          </div>
           <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800">
             <span className="text-xs font-mono-code text-slate-300 truncate flex-1 pl-1">
               {publicUrl}

@@ -197,11 +197,14 @@ export const QRPreview: React.FC<QRPreviewProps> = ({
         {/* Encoded Payload Description */}
         <div className="mt-3 text-center max-w-[260px]">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-400 block">
-            🔗 Interactive Reveal Link
+            🔗 Custom QR Destination Link
           </span>
           <p className="text-[11px] text-slate-400 font-mono-code truncate mt-0.5" title={isPublished ? payload : 'Requires publishing'}>
             {isPublished ? payload : '•••••••••••••••• (Publish to activate)'}
           </p>
+          <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/25 text-[10px] font-bold text-indigo-300">
+            <span>⏱️ Active & Valid for 30 Days (1 Month)</span>
+          </div>
         </div>
       </div>
 
