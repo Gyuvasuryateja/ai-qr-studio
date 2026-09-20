@@ -31,6 +31,7 @@ export interface User {
   name: string;
   email: string;
   createdAt: string;
+  isExistingAccount?: boolean;
 }
 
 const STORAGE_KEY = 'custom_qr_auth_user';
@@ -178,25 +179,56 @@ export const authService = {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const fbUser = result.user;
-      const userName = presetName?.trim() || fbUser.displayName || fbUser.email?.split('@')[0] || 'User';
 
-      if (presetName?.trim() && (!fbUser.displayName || fbUser.displayName !== presetName.trim())) {
+      // Check if user account already exists in Firestore
+      let isExisting = false;
+      let existingName: string | undefined;
+      let originalCreatedAt = fbUser.metadata.creationTime || new Date().toISOString();
+
+      try {
+        const userDocRef = doc(db, 'users', fbUser.uid);
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists()) {
+          isExisting = true;
+          const data = userSnap.data();
+          existingName = data?.name;
+          if (data?.createdAt) originalCreatedAt = data.createdAt;
+        } else {
+          // If creation time is more than 30 seconds ago, it was an existing Firebase user
+          const creationMs = new Date(fbUser.metadata.creationTime || 0).getTime();
+          const lastLoginMs = new Date(fbUser.metadata.lastSignInTime || 0).getTime();
+          if (creationMs > 0 && lastLoginMs - creationMs > 30000) {
+            isExisting = true;
+          }
+        }
+      } catch (checkErr) {
+        console.warn('Could not verify existing account in Firestore:', checkErr);
+      }
+
+      // If already existing, keep their previous name; if new, use presetName or Google name
+      const finalName = (isExisting && existingName) 
+        ? existingName 
+        : (presetName?.trim() || fbUser.displayName || fbUser.email?.split('@')[0] || 'User');
+
+      if (!isExisting && presetName?.trim() && (!fbUser.displayName || fbUser.displayName !== presetName.trim())) {
         await updateProfile(fbUser, { displayName: presetName.trim() }).catch(() => {});
       }
 
       const sessionUser: User = {
         id: fbUser.uid,
-        name: userName,
+        name: finalName,
         email: fbUser.email || '',
-        createdAt: fbUser.metadata.creationTime || new Date().toISOString()
+        createdAt: originalCreatedAt,
+        isExistingAccount: isExisting
       };
 
-      // Store / sync user record in Firestore
+      // Store / sync user record in Firestore without overwriting original createdAt
       try {
         await setDoc(doc(db, 'users', fbUser.uid), {
           id: fbUser.uid,
-          name: userName,
+          name: finalName,
           email: fbUser.email || '',
+          createdAt: originalCreatedAt,
           lastLoginAt: new Date().toISOString()
         }, { merge: true });
       } catch (e) {

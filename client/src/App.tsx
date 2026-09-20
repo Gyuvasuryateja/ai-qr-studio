@@ -148,7 +148,11 @@ export const App: React.FC = () => {
 
   const handleAuthSuccess = (user: User) => {
     setCurrentUser(user);
-    showToast(`Welcome, ${user.name}!`);
+    if (user.isExistingAccount) {
+      showToast(`Account already exists with this Gmail! Loaded your previous account: ${user.name}`);
+    } else {
+      showToast(`Welcome, ${user.name}!`);
+    }
     setActiveTab('studio');
     if (postAuthAction) {
       postAuthAction(user);
