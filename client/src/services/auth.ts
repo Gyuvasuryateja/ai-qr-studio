@@ -389,12 +389,17 @@ export const cloudStorageService = {
     const recordsMap = new Map<string, QRCodeRecord>();
     const CACHE_KEY = `cached_qrs_${userId || 'anon'}`;
 
-    // Load from local storage cache first
+    // Load from local storage cache first (both user-specific and anon cache)
     try {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const parsed: QRCodeRecord[] = JSON.parse(cached);
+      const cachedUser = localStorage.getItem(CACHE_KEY);
+      if (cachedUser) {
+        const parsed: QRCodeRecord[] = JSON.parse(cachedUser);
         parsed.forEach(r => recordsMap.set(r.id, r));
+      }
+      const cachedAnon = localStorage.getItem('cached_qrs_anon');
+      if (cachedAnon) {
+        const parsedAnon: QRCodeRecord[] = JSON.parse(cachedAnon);
+        parsedAnon.forEach(r => recordsMap.set(r.id, r));
       }
     } catch {}
 
@@ -432,11 +437,16 @@ export const cloudStorageService = {
     const nowMs = Date.now();
     const activeRecords = records.filter(record => {
       if (!record.stats) return true;
-      const createdMs = new Date(record.stats.createdAt).getTime();
+      const createdMs = record.stats.createdAt ? new Date(record.stats.createdAt).getTime() : nowMs;
       const expiresMs = record.stats.expiresAt 
         ? new Date(record.stats.expiresAt).getTime() 
         : (createdMs + 30 * 24 * 60 * 60 * 1000);
-      return nowMs <= expiresMs; // Retain strictly for 30 days!
+      
+      // If expiresMs is valid and in the future, keep it!
+      if (expiresMs && expiresMs > nowMs) return true;
+      // If newly created (within 24 hours), always keep it!
+      if (nowMs - createdMs < 24 * 60 * 60 * 1000) return true;
+      return false;
     });
 
     // Save back to persistent local cache

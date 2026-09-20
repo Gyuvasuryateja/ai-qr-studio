@@ -233,19 +233,27 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onSelectQR, onNewQ
 
                     <div className="flex items-center gap-1.5">
                       {(() => {
-                        const createdAt = new Date(qr.stats.createdAt).getTime();
-                        const expiresAt = qr.stats.expiresAt ? new Date(qr.stats.expiresAt).getTime() : createdAt + 30 * 24 * 60 * 60 * 1000;
-                        const daysLeft = Math.max(0, Math.ceil((expiresAt - Date.now()) / (1000 * 60 * 60 * 24)));
-                        const isExpired = Date.now() > expiresAt;
+                        const nowMs = Date.now();
+                        const createdAtMs = qr.stats?.createdAt ? new Date(qr.stats.createdAt).getTime() : nowMs;
+                        // Calculate valid expiration timestamp (30 days from creation)
+                        let expiresAtMs = qr.stats?.expiresAt ? new Date(qr.stats.expiresAt).getTime() : 0;
+                        if (!expiresAtMs || isNaN(expiresAtMs) || expiresAtMs < createdAtMs) {
+                          expiresAtMs = createdAtMs + 30 * 24 * 60 * 60 * 1000;
+                        }
+
+                        const diffMs = expiresAtMs - nowMs;
+                        const daysLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+                        const isExpired = diffMs <= 0 && (nowMs - createdAtMs > 24 * 60 * 60 * 1000); // only true expired if past 30 full days
+
                         return (
                           <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
                             isExpired
                               ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
                               : daysLeft <= 5
                                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                : 'bg-slate-800 text-slate-400 border border-slate-700'
+                                : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
                           }`}>
-                            {isExpired ? 'Expired' : `${daysLeft}d validity`}
+                            {isExpired ? 'Expired' : `${Math.max(1, daysLeft)}d validity`}
                           </span>
                         );
                       })()}
