@@ -46,9 +46,9 @@ export const PublicQRViewer: React.FC<PublicQRViewerProps> = ({ qrId, onBackToSt
         try {
           data = await api.getQRCode(qrId);
         } catch (fetchErr) {
-          // If first attempt failed and we haven't retried yet, wait 1.2s and retry
-          if (retryCount < 2) {
-            await new Promise(res => setTimeout(res, 1200));
+          // If server was cold / sleeping, retry up to 4 times with short intervals
+          if (retryCount < 4) {
+            await new Promise(res => setTimeout(res, 1000));
             if (isMounted) return loadData(retryCount + 1);
           }
           throw fetchErr;

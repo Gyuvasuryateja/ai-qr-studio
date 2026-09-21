@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import translate from 'translate';
 translate.engine = 'google';
 import { AIEnhanceRequest, AIEnhanceResponse } from '../types.js';
@@ -17,8 +17,7 @@ export async function enhanceContentWithAI(req: AIEnhanceRequest): Promise<AIEnh
   }
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const ai = new GoogleGenAI({ apiKey });
 
     const toneInstruction = TONE_PROMPTS[req.tone] || TONE_PROMPTS.Refined;
 
@@ -55,8 +54,11 @@ Return ONLY a valid JSON object matching this schema exactly without any markdow
   "tags": ["Tag1", "Tag2", "Tag3"]
 }`;
 
-    const result = await model.generateContent(systemPrompt);
-    const responseText = result.response.text().trim();
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: systemPrompt,
+    });
+    const responseText = response.text?.trim() || '';
     
     // Clean code fences if present
     const cleanedJson = responseText

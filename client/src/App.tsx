@@ -60,15 +60,27 @@ export const App: React.FC = () => {
     errorCorrectionLevel: 'Q'
   });
 
-  // URL Path router check for direct `/reveal/:id` navigation
+  // URL Path & Query router check for direct `/reveal/:id` navigation
   useEffect(() => {
+    // Check pathname (/reveal/:id)
     const path = window.location.pathname;
     if (path.startsWith('/reveal/')) {
       const id = path.replace('/reveal/', '').split('/')[0];
       if (id) {
         setRevealId(id);
+        return;
       }
     }
+
+    // Also check query parameter fallback (?reveal=ID or ?qr=ID)
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const queryRevealId = searchParams.get('reveal') || searchParams.get('qr');
+      if (queryRevealId) {
+        setRevealId(queryRevealId);
+        return;
+      }
+    } catch {}
 
     // Load saved API key
     const savedKey = localStorage.getItem('Smart_api_key');
@@ -163,6 +175,7 @@ export const App: React.FC = () => {
   const handleSignOut = () => {
     authService.signOut();
     setCurrentUser(null);
+    handleNewQR();
     showToast('Signed out successfully');
   };
 

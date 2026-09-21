@@ -38,12 +38,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onSelectQR, onNewQ
 
   const fetchQRs = async () => {
     try {
-      // If we don't have any cached QRs, keep spinner active, otherwise sync silently in background
-      if (qrs.length === 0) setLoading(true);
       const data = await api.getQRCodes(currentUser?.id, currentUser?.email);
-      if (data && data.length > 0) {
-        setQrs(data);
-      }
+      setQrs(data || []);
     } catch (err) {
       console.error('Failed to load QR list:', err);
     } finally {
@@ -53,10 +49,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onSelectQR, onNewQ
 
   useEffect(() => {
     const cached = api.getCachedQRs(currentUser?.id, currentUser?.email);
-    if (cached.length > 0) {
-      setQrs(cached);
-      setLoading(false);
-    }
+    setQrs(cached);
+    setLoading(cached.length === 0);
     fetchQRs();
   }, [currentUser?.id, currentUser?.email]);
 

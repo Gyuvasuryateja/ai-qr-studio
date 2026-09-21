@@ -1,0 +1,11 @@
+{
+  "name": "AI QR Studio",
+  "description": "Create custom QR codes with personalized voice recordings, photo covers, and messages.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

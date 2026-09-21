@@ -277,6 +277,8 @@ export const authService = {
       console.warn('Sign out error:', e);
     }
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem('cached_qrs_anon');
+    notifyAuthListeners(null);
   }
 };
 
@@ -400,24 +402,40 @@ export const cloudStorageService = {
   // Instant synchronous/cached read without waiting for network or Firestore
   getCachedQRs(userId?: string, userEmail?: string): QRCodeRecord[] {
     const recordsMap = new Map<string, QRCodeRecord>();
+    const normEmail = userEmail?.toLowerCase();
+
     try {
       const keysToRead = new Set<string>();
-      if (userId) keysToRead.add(`cached_qrs_${userId}`);
-      if (userEmail) keysToRead.add(`cached_qrs_${userEmail.toLowerCase()}`);
-      keysToRead.add('cached_qrs_anon');
+      if (userId && userId !== 'anonymous') keysToRead.add(`cached_qrs_${userId}`);
+      if (normEmail) keysToRead.add(`cached_qrs_${normEmail}`);
+      
+      // CRITICAL: Only read anonymous cache if user is NOT logged in!
+      if (!userId && !normEmail) {
+        keysToRead.add('cached_qrs_anon');
+      }
 
       for (const key of keysToRead) {
         const cached = localStorage.getItem(key);
         if (cached) {
           const parsed: QRCodeRecord[] = JSON.parse(cached);
-          parsed.forEach(r => recordsMap.set(r.id, r));
+          parsed.forEach(r => {
+            if (userId && r.userId && r.userId !== 'anonymous' && r.userId !== userId) return;
+            if (normEmail && r.userEmail && r.userEmail.toLowerCase() !== normEmail) return;
+            recordsMap.set(r.id, r);
+          });
         }
       }
     } catch {}
 
-    const records = Array.from(recordsMap.values()).sort((a, b) => 
-      new Date(b.stats?.createdAt || 0).getTime() - new Date(a.stats?.createdAt || 0).getTime()
-    );
+    const records = Array.from(recordsMap.values())
+      .filter(r => {
+        if (userId && r.userId && r.userId !== 'anonymous' && r.userId !== userId) return false;
+        if (normEmail && r.userEmail && r.userEmail.toLowerCase() !== normEmail) return false;
+        return true;
+      })
+      .sort((a, b) => 
+        new Date(b.stats?.createdAt || 0).getTime() - new Date(a.stats?.createdAt || 0).getTime()
+      );
 
     const nowMs = Date.now();
     return records.filter(record => {
@@ -435,19 +453,26 @@ export const cloudStorageService = {
   // Get all QR codes for a user from Cloud Firestore with local cache backup
   async getQRCodes(userId?: string, userEmail?: string): Promise<QRCodeRecord[]> {
     const recordsMap = new Map<string, QRCodeRecord>();
+    const normEmail = userEmail?.toLowerCase();
 
-    // 1. Instantly load from all relevant local storage cache buckets
+    // 1. Instantly load from user-specific local storage cache buckets only
     try {
       const keysToRead = new Set<string>();
-      if (userId) keysToRead.add(`cached_qrs_${userId}`);
-      if (userEmail) keysToRead.add(`cached_qrs_${userEmail.toLowerCase()}`);
-      keysToRead.add('cached_qrs_anon');
+      if (userId && userId !== 'anonymous') keysToRead.add(`cached_qrs_${userId}`);
+      if (normEmail) keysToRead.add(`cached_qrs_${normEmail}`);
+      if (!userId && !normEmail) {
+        keysToRead.add('cached_qrs_anon');
+      }
 
       for (const key of keysToRead) {
         const cached = localStorage.getItem(key);
         if (cached) {
           const parsed: QRCodeRecord[] = JSON.parse(cached);
-          parsed.forEach(r => recordsMap.set(r.id, r));
+          parsed.forEach(r => {
+            if (userId && r.userId && r.userId !== 'anonymous' && r.userId !== userId) return;
+            if (normEmail && r.userEmail && r.userEmail.toLowerCase() !== normEmail) return;
+            recordsMap.set(r.id, r);
+          });
         }
       }
     } catch {}
@@ -458,35 +483,51 @@ export const cloudStorageService = {
         const qrsCollection = collection(db, 'qrcodes');
 
         // Query by userId
-        if (userId) {
+        if (userId && userId !== 'anonymous') {
           const userQ = query(qrsCollection, where('userId', '==', userId));
           const userSnap = await getDocs(userQ);
-          userSnap.forEach(d => recordsMap.set(d.id, d.data() as QRCodeRecord));
+          userSnap.forEach(d => {
+            const data = d.data() as QRCodeRecord;
+            if (data.userId === userId) {
+              recordsMap.set(d.id, data);
+            }
+          });
         }
 
         // Query by userEmail as secondary link
-        if (userEmail) {
-          const emailQ = query(qrsCollection, where('userEmail', '==', userEmail.toLowerCase()));
+        if (normEmail) {
+          const emailQ = query(qrsCollection, where('userEmail', '==', normEmail));
           const emailSnap = await getDocs(emailQ);
-          emailSnap.forEach(d => recordsMap.set(d.id, d.data() as QRCodeRecord));
+          emailSnap.forEach(d => {
+            const data = d.data() as QRCodeRecord;
+            if (data.userEmail?.toLowerCase() === normEmail) {
+              recordsMap.set(d.id, data);
+            }
+          });
         }
 
-        // If no user filter provided, get all
-        if (!userId && !userEmail) {
+        // If no user filter provided, get all (only for non-auth)
+        if (!userId && !normEmail) {
           const allSnap = await getDocs(query(qrsCollection));
           allSnap.forEach(d => recordsMap.set(d.id, d.data() as QRCodeRecord));
         }
       })();
 
-      const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 1800));
+      const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 2500));
       await Promise.race([firestoreFetchPromise, timeoutPromise]);
     } catch (err) {
       console.warn('Firestore getQRCodes fetch error:', err);
     }
 
-    const records = Array.from(recordsMap.values()).sort((a, b) => 
-      new Date(b.stats.createdAt).getTime() - new Date(a.stats.createdAt).getTime()
-    );
+    const records = Array.from(recordsMap.values())
+      .filter(r => {
+        if (userId && r.userId && r.userId !== 'anonymous' && r.userId !== userId) return false;
+        if (normEmail && r.userEmail && r.userEmail.toLowerCase() !== normEmail) return false;
+        return true;
+      })
+      .sort((a, b) => 
+        new Date(b.stats?.createdAt || 0).getTime() - new Date(a.stats?.createdAt || 0).getTime()
+      );
 
     // Filter out only ones that have actually expired (> 30 days)
     const nowMs = Date.now();

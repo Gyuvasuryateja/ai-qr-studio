@@ -48,24 +48,41 @@ export const api = {
   // Instant synchronous cache read (0ms latency, guaranteed immediate display)
   getCachedQRs(userId?: string, userEmail?: string): QRCodeRecord[] {
     const recordsMap = new Map<string, QRCodeRecord>();
+    const normEmail = userEmail?.toLowerCase();
+
     try {
       const keysToRead = new Set<string>();
-      if (userId) keysToRead.add(`cached_qrs_${userId}`);
-      if (userEmail) keysToRead.add(`cached_qrs_${userEmail.toLowerCase()}`);
-      keysToRead.add('cached_qrs_anon');
+      if (userId && userId !== 'anonymous') keysToRead.add(`cached_qrs_${userId}`);
+      if (normEmail) keysToRead.add(`cached_qrs_${normEmail}`);
+      
+      // CRITICAL: Only read anonymous cache if user is NOT logged in!
+      if (!userId && !normEmail) {
+        keysToRead.add('cached_qrs_anon');
+      }
 
       for (const key of keysToRead) {
         const cached = localStorage.getItem(key);
         if (cached) {
           const parsed: QRCodeRecord[] = JSON.parse(cached);
-          parsed.forEach(r => recordsMap.set(r.id, r));
+          parsed.forEach(r => {
+            // Strict account isolation check:
+            if (userId && r.userId && r.userId !== 'anonymous' && r.userId !== userId) return;
+            if (normEmail && r.userEmail && r.userEmail.toLowerCase() !== normEmail) return;
+            recordsMap.set(r.id, r);
+          });
         }
       }
     } catch {}
 
-    const records = Array.from(recordsMap.values()).sort((a, b) => 
-      new Date(b.stats?.createdAt || 0).getTime() - new Date(a.stats?.createdAt || 0).getTime()
-    );
+    const records = Array.from(recordsMap.values())
+      .filter(r => {
+        if (userId && r.userId && r.userId !== 'anonymous' && r.userId !== userId) return false;
+        if (normEmail && r.userEmail && r.userEmail.toLowerCase() !== normEmail) return false;
+        return true;
+      })
+      .sort((a, b) => 
+        new Date(b.stats?.createdAt || 0).getTime() - new Date(a.stats?.createdAt || 0).getTime()
+      );
 
     const nowMs = Date.now();
     return records.filter(record => {
@@ -85,7 +102,7 @@ export const api = {
     try {
       const { cloudStorageService } = await import('./auth');
       const records = await cloudStorageService.getQRCodes(userId, userEmail);
-      if (records && records.length > 0) return records;
+      if (records) return records;
     } catch (e) {
       console.warn('Firestore getQRCodes fallback to server:', e);
     }
@@ -99,38 +116,35 @@ export const api = {
     return await res.json();
   },
 
-  // Get single QR code by ID (fast parallel fetch from Firestore & Server)
+  // Get single QR code by ID (prioritizes Firestore cloud DB so it loads even when server container is cold/sleeping)
   async getQRCode(id: string): Promise<QRCodeRecord> {
-    const fetchFromServer = async (): Promise<QRCodeRecord> => {
-      const res = await fetch(`${API_BASE}/qr/${id}`);
-      if (!res.ok) throw new Error('Not found on server');
-      return await res.json();
-    };
-
-    const fetchFromFirestore = async (): Promise<QRCodeRecord> => {
+    // 1. Direct fetch from Firebase Firestore (serverless, always awake, 0 cold start)
+    try {
       const { cloudStorageService } = await import('./auth');
       const record = await cloudStorageService.getQRCode(id);
-      if (!record) throw new Error('Not found in Firestore');
-      return record;
-    };
-
-    // Parallel race: check both and return the fastest successful result
-    try {
-      return await new Promise<QRCodeRecord>((resolve, reject) => {
-        let errors = 0;
-        const total = 2;
-        const onError = (e: any) => {
-          errors++;
-          if (errors === total) reject(new Error('QR not found'));
-        };
-        fetchFromServer().then(resolve).catch(onError);
-        fetchFromFirestore().then(resolve).catch(onError);
-      });
-    } catch {
-      const res = await fetch(`${API_BASE}/qr/${id}`);
-      if (!res.ok) throw new Error('QR Code destination not found or expired.');
-      return await res.json();
+      if (record) return record;
+    } catch (fsErr) {
+      console.warn('Firestore fetch notice:', fsErr);
     }
+
+    // 2. Fetch from Backend Server API
+    try {
+      const res = await fetch(`${API_BASE}/qr/${id}`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (serverErr) {
+      console.warn('Server API fetch notice:', serverErr);
+    }
+
+    // 3. Check local cache fallback
+    try {
+      const allCached = api.getCachedQRs();
+      const local = allCached.find(r => r.id === id);
+      if (local) return local;
+    } catch {}
+
+    throw new Error('QR Code destination not found or expired.');
   },
 
   // Save (create or update) QR code permanently into Cloud Firestore & Storage with zero UI latency
@@ -152,9 +166,16 @@ export const api = {
         } as QRCodeRecord;
 
         const keysToUpdate = new Set<string>();
-        if (record.userId) keysToUpdate.add(`cached_qrs_${record.userId}`);
-        if (record.userEmail) keysToUpdate.add(`cached_qrs_${record.userEmail.toLowerCase()}`);
-        keysToUpdate.add('cached_qrs_anon');
+        if (record.userId && record.userId !== 'anonymous') {
+          keysToUpdate.add(`cached_qrs_${record.userId}`);
+        }
+        if (record.userEmail) {
+          keysToUpdate.add(`cached_qrs_${record.userEmail.toLowerCase()}`);
+        }
+        // ONLY save to anon cache if no logged in user
+        if (!record.userId || record.userId === 'anonymous') {
+          keysToUpdate.add('cached_qrs_anon');
+        }
 
         for (const key of keysToUpdate) {
           const existing = localStorage.getItem(key);

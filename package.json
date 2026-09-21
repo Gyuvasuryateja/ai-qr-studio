@@ -2,14 +2,18 @@
   "name": "ai-qr-studio-workspace",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "npm --prefix server run dev",
-    "dev:client": "npm --prefix client run dev",
-    "build": "npm --prefix server install && npm --prefix client install && npm --prefix server run build && npm --prefix client run build",
-    "start": "npm --prefix server start"
+    "dev": "tsx server/src/index.ts",
+    "build": "npm --prefix client run build && npm --prefix server run build",
+    "start": "node server/dist/index.js"
   },
-  "devDependencies": {
-    "concurrently": "^9.1.2"
+  "dependencies": {
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
   }
 }
